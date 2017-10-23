@@ -141,7 +141,7 @@ def train():
                 best_l2_loss = temp_loss 
                 save_model_session(sess, best + "conv_lstm_model")
         
-        if global_step % 100 == 0:
+        if global_step % 10 == 0:
             print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
         
         global_step += 1
