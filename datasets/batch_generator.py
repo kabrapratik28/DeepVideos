@@ -92,7 +92,7 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['validation'])
-        return fixed_next_batch(val_iter)
+        return self.fixed_next_batch(val_iter)
 
     def test_next_batch(self,):
         """Returns lists of length batch_size.
@@ -101,5 +101,5 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['test'])
-        return fixed_next_batch(val_iter)
+        return self.fixed_next_batch(val_iter)
 
