@@ -4,7 +4,7 @@ import shutil
 import tensorflow as tf
 from cell import ConvLSTMCell
 import sys
-module_path = os.path.abspath(os.path.join(".."))
+module_path = os.path.join(os.path.abspath(os.path.dirname(__file__)),"..")
 if module_path not in sys.path:
 	sys.path.append(module_path)
 from datasets.batch_generator import datasets

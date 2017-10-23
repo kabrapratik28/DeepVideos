@@ -3,7 +3,7 @@ import random
 from frame_extraction import frame_extractor
 
 class datasets(object):
-    def __init__(self, DIR='../../data', output_filename='../../all_videos.txt', batch_size=64, **kwargs):
+    def __init__(self, batch_size=64, val_split=0.1, test_split=0.1, DIR='../../data', output_filename='../../all_videos.txt', ):
         file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(file_path,DIR)
         self.output_filename = os.path.join(file_path,output_filename)
@@ -12,6 +12,7 @@ class datasets(object):
         self.data = None
         self.frame_ext = frame_extractor()
         self.videos_to_text_file()
+        self.train_test_split(val_split,test_split)
 
     def videos_to_text_file(self):
         with open(self.output_filename, "w") as a:
