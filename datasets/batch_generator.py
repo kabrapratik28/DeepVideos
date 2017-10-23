@@ -61,7 +61,7 @@ class datasets(object):
                     entry = train_iter.next()
                 except StopIteration:
                 	# Shuffle data for next rollover ... 
-                	random.shuffle(data['train'])
+                	random.shuffle(self.data['train'])
                 	train_iter = iter(self.data['train'])
                 if entry != None:
 	                curr_batch.append(entry)
@@ -83,6 +83,8 @@ class datasets(object):
 	                curr_batch.append(entry)
             if len(curr_batch)==self.batch_size:
                 yield self.frame_ext.get_frames(curr_batch)
+            if is_done:
+                break
 
     def val_next_batch(self,):
         """
