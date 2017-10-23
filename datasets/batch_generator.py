@@ -6,8 +6,8 @@ import cPickle
 class datasets(object):
     def __init__(self, DIR='../../data', output_filename='../../all_videos.txt', batch_size=64, **kwargs):
         self.file_path = os.path.abspath(os.path.dirname(__file__))
-        self.DIR = os.path.join(file_path,DIR)
-        self.output_filename = os.path.join(file_path,output_filename)
+        self.DIR = os.path.join(self.file_path,DIR)
+        self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
         self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
         self.data = None
@@ -38,7 +38,8 @@ class datasets(object):
         split_test_data : '%' of test data to split between 0 to 1
         """
         data = {}
-
+        unseen = []
+        seen = []
         for line in open(self.output_filename):
             line = line.rstrip('\n')
             if line in self.blacklist:
