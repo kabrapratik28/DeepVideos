@@ -3,6 +3,11 @@ import os
 import shutil
 import tensorflow as tf
 from cell import ConvLSTMCell
+import sys
+module_path = os.path.abspath(os.path.join(".."))
+if module_path not in sys.path:
+	sys.path.append(module_path)
+from datasets.batch_generator import datasets
 
 class conv_lstm_model():
     def __init__(self):
@@ -10,7 +15,7 @@ class conv_lstm_model():
         tf.reset_default_graph()
 
         """Parameter initialization"""
-        self.batch_size = 4 #128
+        self.batch_size = 64
         self.timesteps = 32
         self.shape = [64, 64] # Image shape
         self.kernel = [3, 3]
@@ -91,12 +96,13 @@ def train():
     # clear logs !
     log_directory_creation()
     
-    # data read iterator
-    data = read_data(data_folder,128)
     # conv lstm model
     model = conv_lstm_model()
     model.build_model()
     
+    # data read iterator
+    data = datasets(batch_size=model.batch_size)
+
     # Initialize the variables (i.e. assign their default value)
     init = tf.global_variables_initializer()
     
@@ -111,8 +117,7 @@ def train():
     test_writer = tf.summary.FileWriter(log_dir_file_path+"/test", sess.graph)
 
     global_step=0
-    while True:
-        X_batch, y_batch = data.next_batch()
+    for X_batch, y_batch in data.train_next_batch():
         _, summary = sess.run([model.optimizer, summary_merged], feed_dict={model.inputs: X_batch, model.outputs_exp: y_batch})
         train_writer.add_summary(summary,global_step)
         global_step += 1
@@ -125,11 +130,10 @@ def train():
             
             val_l2_loss_history = list()
             # iterate on validation batch ...
-            # for X_val, y_val in data.val_next_batch():
-            X_val, y_val = data.val_next_batch()
-            test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss], feed_dict={model.inputs: X_val, model.outputs_exp: y_val})
-            test_writer.add_summary(test_summary,global_step)
-            val_l2_loss_history.append(val_l2_loss)
+            for X_val, y_val in data.val_next_batch():
+	            test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss], feed_dict={model.inputs: X_val, model.outputs_exp: y_val})
+	            test_writer.add_summary(test_summary,global_step)
+	            val_l2_loss_history.append(val_l2_loss)
             temp_loss = sum(val_l2_loss_history) * 1.0 /len(val_l2_loss_history)
             
             # save if better !
