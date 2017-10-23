@@ -1,8 +1,9 @@
 import random
 import skvideo.io
 import cv2
+import numpy as np
 
-class frame_extactor():
+class frame_extractor():
 	def __init__(self,heigth=64, width=64, time_frame=32):
 		self.heigth = heigth
 		self.width = width
@@ -13,7 +14,7 @@ class frame_extactor():
 		train_y = []
 		for each_filename in list_video_filenames:
 			video_data = skvideo.io.vread(each_filename)
-			N, H, W, C = videodata.shape
+			N, H, W, C = video_data.shape
 			max_frame_number = N - (self.time_frame+1)
 			frame_index = random.randint(0,max_frame_number)
 			data = video_data[frame_index : frame_index+self.time_frame+1]

@@ -1,14 +1,17 @@
 import os
 import random
+from frame_extraction import frame_extractor
 
 class datasets(object):
-    def __init__(self, DIR='../../data', output_filename='all_videos.txt', batch_size=64, **kwargs):
-        self.DIR = DIR
-        self.output_filename = output_filename
+    def __init__(self, DIR='../../data', output_filename='../../all_videos.txt', batch_size=64, **kwargs):
+        file_path = os.path.abspath(os.path.dirname(__file__))
+        self.DIR = os.path.join(file_path,DIR)
+        self.output_filename = os.path.join(file_path,output_filename)
         self.batch_size = batch_size
         self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
         self.data = None
-
+        self.frame_ext = frame_extractor()
+        self.videos_to_text_file()
 
     def videos_to_text_file(self):
         with open(self.output_filename, "w") as a:
@@ -62,7 +65,7 @@ class datasets(object):
                 if entry != None:
 	                curr_batch.append(entry)
             if curr_batch:
-                yield curr_batch
+                yield self.frame_ext.get_frames(curr_batch)
 
     def fixed_next_batch(self,data_iter):
     	is_done = False
@@ -78,7 +81,7 @@ class datasets(object):
                 if entry != None:
 	                curr_batch.append(entry)
             if len(curr_batch)==self.batch_size:
-                yield curr_batch
+                yield self.frame_ext.get_frames(curr_batch)
 
     def val_next_batch(self,):
         """
