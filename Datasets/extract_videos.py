@@ -21,15 +21,16 @@ class DataSets(object):
         """
         data = {}
         unseen = [line.rstrip('\n') for line in open(self.output_filename) if any(substring in line for substring in self.flagged_activities)]
-        seen = [line.rstrip('\n') for line in open(self.output_filename) if any(substring in line for substring in self.flagged_activities)]
+        seen = [line.rstrip('\n') for line in open(self.output_filename) if not any(substring in line for substring in self.flagged_activities)]
         validation_index = int(len(seen)* (split_test_data))
-
+        print(validation_index)
         #Random Shuffle
         random.shuffle(seen)
         data['validation'] = seen[:validation_index]
 
         seen = seen[validation_index:]
         test_index = int(len(seen)* (split_test_data))
+        print(test_index)
         data['train'] = seen[test_index:]
         data['test'] = seen[:test_index]
         data['unseen'] = unseen
