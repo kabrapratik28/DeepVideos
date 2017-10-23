@@ -103,6 +103,8 @@ class datasets(object):
 	                curr_batch.append(entry)
             if len(curr_batch)==self.batch_size:
                 yield self.frame_ext.get_frames(curr_batch)
+            if is_done:
+                break
 
     def val_next_batch(self,):
         """
@@ -112,7 +114,7 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['validation'])
-        return fixed_next_batch(val_iter)
+        return self.fixed_next_batch(val_iter)
 
     def test_next_batch(self,):
         """Returns lists of length batch_size.
