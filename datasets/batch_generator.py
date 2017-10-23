@@ -58,7 +58,7 @@ class datasets(object):
                 except StopIteration:
                 	# Shuffle data for next rollover ... 
                 	random.shuffle(data['train'])
-                    train_iter = iter(self.data['train'])
+                	train_iter = iter(self.data['train'])
                 if entry != None:
 	                curr_batch.append(entry)
             if curr_batch:
@@ -80,14 +80,15 @@ class datasets(object):
             if len(curr_batch)==self.batch_size:
                 yield curr_batch
 
-	def val_next_batch(self,):
-        """Returns lists of length batch_size.
+    def val_next_batch(self,):
+        """
+        Returns lists of length batch_size.
         This is a generator function, and it returns lists of the
         entries from the supplied iterator.  Each list will have
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['validation'])
-        returns fixed_next_batch(val_iter)
+        return fixed_next_batch(val_iter)
 
     def test_next_batch(self,):
         """Returns lists of length batch_size.
@@ -96,5 +97,5 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['test'])
-        returns fixed_next_batch(val_iter)
+        return fixed_next_batch(val_iter)
 
