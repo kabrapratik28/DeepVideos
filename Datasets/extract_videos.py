@@ -59,4 +59,4 @@ class DataSets(object):
 
 a = DataSets()
 # a.videos_to_text_file()
-videos = a.train_test_split()
+videos = a.train_test_split(0.2, 0.1)
