@@ -1,18 +1,29 @@
 import os
 import random
 from frame_extraction import frame_extractor
+import cPickle
 
 class datasets(object):
-    def __init__(self, batch_size=64, val_split=0.1, test_split=0.1, DIR='../../data', output_filename='../../all_videos.txt', ):
-        file_path = os.path.abspath(os.path.dirname(__file__))
-        self.DIR = os.path.join(file_path,DIR)
-        self.output_filename = os.path.join(file_path,output_filename)
+    def __init__(self, DIR='../../data', output_filename='../../all_videos.txt', batch_size=64, **kwargs):
+        self.file_path = os.path.abspath(os.path.dirname(__file__))
+        self.DIR = os.path.join(self.file_path,DIR)
+        self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
         self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
         self.data = None
         self.frame_ext = frame_extractor()
         self.videos_to_text_file()
-        self.train_test_split(val_split,test_split)
+        self.load_problematic_videos()
+
+    def load_problematic_videos(self):
+        _frames_file = os.path.join(self.file_path, 'frames.pickle')
+        _problem_videos_file = os.path.join(self.file_path, 'problematic_videos.pickle')
+        with open(_frames_file, 'rb') as fp:
+            short_frames = cPickle.load(fp)
+        with open(_problem_videos_file, 'rb') as fp:
+            problematic_videos = cPickle.load(fp)
+
+        self.blacklist = set(short_frames + problematic_videos)
 
     def videos_to_text_file(self):
         with open(self.output_filename, "w") as a:
@@ -27,10 +38,19 @@ class datasets(object):
         split_test_data : '%' of test data to split between 0 to 1
         """
         data = {}
-        unseen = [line.rstrip('\n') for line in open(self.output_filename) if any(substring in line for substring in self.flagged_activities)]
-        seen = [line.rstrip('\n') for line in open(self.output_filename) if not any(substring in line for substring in self.flagged_activities)]
+        unseen = []
+        seen = []
+        for line in open(self.output_filename):
+            line = line.rstrip('\n')
+            if line in self.blacklist:
+                continue
+            if any(substring in line for substring in self.flagged_activities):
+                unseen.append(line)
+            else:
+                seen.append(line)
+
         datasize = len(seen)
-        
+
         #Random Shuffle
         random.shuffle(seen)
 
@@ -60,8 +80,8 @@ class datasets(object):
                 try:
                     entry = train_iter.next()
                 except StopIteration:
-                	# Shuffle data for next rollover ... 
-                	random.shuffle(self.data['train'])
+                	# Shuffle data for next rollover ...
+                	random.shuffle(data['train'])
                 	train_iter = iter(self.data['train'])
                 if entry != None:
 	                curr_batch.append(entry)
@@ -103,5 +123,4 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['test'])
-        return self.fixed_next_batch(val_iter)
-
+        return fixed_next_batch(val_iter)
