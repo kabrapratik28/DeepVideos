@@ -15,7 +15,7 @@ class conv_lstm_model():
         tf.reset_default_graph()
 
         """Parameter initialization"""
-        self.batch_size = 8
+        self.batch_size = 32
         self.timesteps = 32
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
