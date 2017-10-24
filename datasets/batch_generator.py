@@ -13,8 +13,8 @@ class datasets(object):
         self.data = None
         self.frame_ext = frame_extractor()
         self.videos_to_text_file()
+	self.load_problematic_videos()
         self.train_test_split(val_split,test_split)
-        self.load_problematic_videos()
 
     def load_problematic_videos(self):
         _frames_file = os.path.join(self.file_path, 'frames.pickle')
