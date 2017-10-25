@@ -15,7 +15,7 @@ class conv_lstm_model():
         tf.reset_default_graph()
 
         """Parameter initialization"""
-        self.batch_size = 8
+        self.batch_size = 4
         self.timesteps = 32
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
@@ -95,9 +95,9 @@ def restore_model_session(sess, file_name):
 
 def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     # info can be {"train", "val"}
-    if (X_batch==None or y_batch==None or 
+    if (X_batch is None or y_batch is None or 
         X_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels) or
-        y_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels))
+        y_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels)):
             print ("Warning: skipping this" + info + " batch because of shape")
             return False
     return True
