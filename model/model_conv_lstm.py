@@ -65,7 +65,7 @@ class conv_lstm_model():
 file_path = os.path.abspath(os.path.dirname(__file__))
 data_folder = os.path.join(file_path, "../../data/") 
 log_dir_file_path = os.path.join(file_path, "../../logs/")
-model_save_file_path = os.path.join(file_path, "../../checkpoint/") 
+model_save_file_path = os.path.join(file_path, "../../checkpoint_new/") 
 iterations = "iterations/"
 best = "best/"
 checkpoint_iterations = 25
@@ -74,16 +74,17 @@ best_l2_loss = float("inf")
 heigth, width = 64, 64
 channels = 3
 
-def log_directory_creation():
+def log_directory_creation(sess):
     if tf.gfile.Exists(log_dir_file_path):
         tf.gfile.DeleteRecursively(log_dir_file_path)
     tf.gfile.MakeDirs(log_dir_file_path)
     
     # model save directory
-    if os.path.exists(model_save_file_path):
-        shutil.rmtree(model_save_file_path)
-    os.makedirs(model_save_file_path + iterations)
-    os.makedirs(model_save_file_path + best)
+    if os.path.isdir(model_save_file_path):
+        restore_model_session(sess, model_save_file_path)
+    else:
+        os.makedirs(model_save_file_path + iterations)
+        os.makedirs(model_save_file_path + best)
     
 def save_model_session(sess, file_name):
     saver = tf.train.Saver()
@@ -104,8 +105,16 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     
 def train():
     global best_l2_loss
+    
+    # Initialize the variables (i.e. assign their default value)
+    init = tf.global_variables_initializer()
+    
+    # Start training
+    sess = tf.InteractiveSession()
+    sess.run(init)
+    
     # clear logs !
-    log_directory_creation()
+    log_directory_creation(sess)
     
     # conv lstm model
     model = conv_lstm_model()
@@ -113,13 +122,6 @@ def train():
     
     # data read iterator
     data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
-
-    # Initialize the variables (i.e. assign their default value)
-    init = tf.global_variables_initializer()
-    
-    # Start training
-    sess = tf.InteractiveSession()
-    sess.run(init)
     
     # Tensorflow Summary
     tf.summary.scalar("train_l2_loss", model.l2_loss)
