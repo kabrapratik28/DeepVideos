@@ -4,7 +4,7 @@ from frame_extraction import frame_extractor
 import cPickle
 
 class datasets(object):
-    def __init__(self, batch_size=64, val_split=0.1, test_split=0.1, heigth=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', ):
+    def __init__(self, batch_size=64, val_split=0.005, test_split=0.005, heigth=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', ):
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
         self.output_filename = os.path.join(self.file_path,output_filename)
