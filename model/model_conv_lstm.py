@@ -15,7 +15,7 @@ class conv_lstm_model():
         tf.reset_default_graph()
 
         """Parameter initialization"""
-        self.batch_size = 8
+        self.batch_size = 4
         self.timesteps = 32
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
@@ -68,9 +68,11 @@ log_dir_file_path = os.path.join(file_path, "../../logs/")
 model_save_file_path = os.path.join(file_path, "../../checkpoint/") 
 iterations = "iterations/"
 best = "best/"
-checkpoint_iterations = 100
+checkpoint_iterations = 25
 best_model_iterations = 25
 best_l2_loss = float("inf")
+heigth, width = 64, 64
+channels = 3
 
 def log_directory_creation():
     if tf.gfile.Exists(log_dir_file_path):
@@ -90,6 +92,15 @@ def save_model_session(sess, file_name):
 def restore_model_session(sess, file_name):
     saver = tf.train.Saver()
     saver.restore(sess, model_save_file_path + file_name + ".ckpt")
+
+def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
+    # info can be {"train", "val"}
+    if (X_batch is None or y_batch is None or 
+        X_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels) or
+        y_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels)):
+            print ("Warning: skipping this" + info + " batch because of shape")
+            return False
+    return True
     
 def train():
     global best_l2_loss
@@ -101,7 +112,7 @@ def train():
     model.build_model()
     
     # data read iterator
-    data = datasets(batch_size=model.batch_size)
+    data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
 
     # Initialize the variables (i.e. assign their default value)
     init = tf.global_variables_initializer()
@@ -119,6 +130,9 @@ def train():
     global_step = 0
     for X_batch, y_batch in data.train_next_batch():
         # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
+        if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
+            # global step not increased !
+            continue
         _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
             model.inputs: X_batch, model.outputs_exp: y_batch})
         train_writer.add_summary(summary, global_step)
@@ -128,9 +142,13 @@ def train():
         
         if global_step % best_model_iterations == 0:            
             val_l2_loss_history = list()
+            batch_counter = 0
             # iterate on validation batch ...
             for X_val, y_val in data.val_next_batch():
+                batch_counter += 1
                 # print ("X_val", X_val.shape, "y_val", y_val.shape)
+                if not is_correct_batch_shape(X_val, y_val, model, "val_"+str(batch_counter)):
+                    continue
                 test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss], feed_dict={model.inputs: X_val, model.outputs_exp: y_val})
                 test_writer.add_summary(test_summary, global_step)
                 val_l2_loss_history.append(val_l2_loss)
@@ -140,10 +158,8 @@ def train():
             if best_l2_loss > temp_loss:
                 best_l2_loss = temp_loss 
                 save_model_session(sess, best + "conv_lstm_model")
-        
-        if global_step % 10 == 0:
-            print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
-        
+            
+        print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
         global_step += 1
 
     train_writer.close()

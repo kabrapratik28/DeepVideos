@@ -4,16 +4,17 @@ from frame_extraction import frame_extractor
 import cPickle
 
 class datasets(object):
-    def __init__(self, DIR='../../data', output_filename='../../all_videos.txt', batch_size=64, **kwargs):
+    def __init__(self, batch_size=64, val_split=0.005, test_split=0.005, heigth=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', ):
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
         self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
         self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
         self.data = None
-        self.frame_ext = frame_extractor()
+        self.frame_ext = frame_extractor(heigth=heigth,width=width)
         self.videos_to_text_file()
         self.load_problematic_videos()
+        self.train_test_split(val_split,test_split)
 
     def load_problematic_videos(self):
         _frames_file = os.path.join(self.file_path, 'frames.pickle')
@@ -65,7 +66,6 @@ class datasets(object):
 
         self.data = data
 
-
     def train_next_batch(self,):
         """Returns lists of length batch_size.
         This is a generator function, and it returns lists of the
@@ -76,31 +76,31 @@ class datasets(object):
         while True:
             curr_batch = []
             while len(curr_batch) < self.batch_size:
-            	entry = None
+                entry = None
                 try:
                     entry = train_iter.next()
                 except StopIteration:
-                	# Shuffle data for next rollover ...
-                	random.shuffle(data['train'])
-                	train_iter = iter(self.data['train'])
+                    # Shuffle data for next rollover ...
+                    random.shuffle(self.data['train'])
+                    train_iter = iter(self.data['train'])
                 if entry != None:
-	                curr_batch.append(entry)
+                    curr_batch.append(entry)
             if curr_batch:
                 yield self.frame_ext.get_frames(curr_batch)
 
     def fixed_next_batch(self,data_iter):
-    	is_done = False
+        is_done = False
         while True:
             curr_batch = []
             while len(curr_batch) < self.batch_size:
-            	entry = None
+                entry = None
                 try:
                     entry = data_iter.next()
                 except StopIteration:
-                	is_done = True
-                	break
+                    is_done = True
+                    break
                 if entry != None:
-	                curr_batch.append(entry)
+                    curr_batch.append(entry)
             if len(curr_batch)==self.batch_size:
                 yield self.frame_ext.get_frames(curr_batch)
             if is_done:
@@ -123,4 +123,4 @@ class datasets(object):
         batch_size entries, although the final list may be shorter.
         """
         val_iter = iter(self.data['test'])
-        return fixed_next_batch(val_iter)
+        return self.fixed_next_batch(val_iter)

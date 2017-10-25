@@ -16,7 +16,9 @@ class frame_extractor():
 			video_data = skvideo.io.vread(each_filename)
 			N, H, W, C = video_data.shape
 			max_frame_number = N - (self.time_frame+1)
-			frame_index = random.randint(0,max_frame_number)
+			frame_index = 0 
+			if max_frame_number>=1:
+				frame_index = random.randint(0,max_frame_number)
 			data = video_data[frame_index : frame_index+self.time_frame+1]
 			frames = []
 			for each_frame in data:
@@ -38,7 +40,9 @@ class frame_extractor():
 			video_data = skvideo.io.vread(each_filename)
 			N, H, W, C = video_data.shape
 			max_frame_number = N - ((self.time_frame + 1) * x)
-			frame_index = random.randint(0,max_frame_number)
+			frame_index = 0 
+			if max_frame_number>=1:
+				frame_index = random.randint(0,max_frame_number)
 			data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]
 			frames = []
 			for each_frame in data:
