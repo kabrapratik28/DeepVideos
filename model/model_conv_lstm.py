@@ -65,7 +65,8 @@ class conv_lstm_model():
 file_path = os.path.abspath(os.path.dirname(__file__))
 data_folder = os.path.join(file_path, "../../data/") 
 log_dir_file_path = os.path.join(file_path, "../../logs/")
-model_save_file_path = os.path.join(file_path, "../../checkpoint/") 
+model_save_file_path = os.path.join(file_path, "../../checkpoint/")
+output_video_save_file_path = os.path.join(file_path, "../../output/")
 iterations = "iterations/"
 best = "best/"
 checkpoint_iterations = 25

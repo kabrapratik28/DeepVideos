@@ -2,12 +2,14 @@ import random
 import skvideo.io
 import cv2
 import numpy as np
+import os
 
 class frame_extractor():
 	def __init__(self,heigth=64, width=64, time_frame=32):
 		self.heigth = heigth
 		self.width = width
 		self.time_frame = time_frame
+		self.count = 0
 
 	def get_frames(self, list_video_filenames):
 		train_X = []
@@ -55,4 +57,11 @@ class frame_extractor():
 			train_y.append(y)
 		train_X = np.array(train_X)
 		train_y = np.array(train_y)
-		return train_X, train_y 
+		return train_X, train_y
+
+	def generate_output_video(self, frames, dir_to_save):
+		no_videos = frames.shape[1]
+		no_frames = frames.shape[0]
+		for i in range(no_videos):
+			cur_video = np.array([frames[j][i] for j in range(no_frames)])
+			skvideo.io.vwrite(os.path.join(dir_to_save, str(self.count) + '.mp4'), cur_video)
