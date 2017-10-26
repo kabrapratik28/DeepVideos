@@ -65,7 +65,7 @@ class conv_lstm_model():
 file_path = os.path.abspath(os.path.dirname(__file__))
 data_folder = os.path.join(file_path, "../../data/") 
 log_dir_file_path = os.path.join(file_path, "../../logs/")
-model_save_file_path = os.path.join(file_path, "../../checkpoint_new/") 
+model_save_file_path = os.path.join(file_path, "../../checkpoint/") 
 iterations = "iterations/"
 best = "best/"
 checkpoint_iterations = 25
@@ -74,55 +74,56 @@ best_l2_loss = float("inf")
 heigth, width = 64, 64
 channels = 3
 
-def log_directory_creation(sess):
+def log_directory_creation():
     if tf.gfile.Exists(log_dir_file_path):
         tf.gfile.DeleteRecursively(log_dir_file_path)
     tf.gfile.MakeDirs(log_dir_file_path)
-    
+
     # model save directory
     if os.path.isdir(model_save_file_path):
-        restore_model_session(sess, model_save_file_path)
+        restore_model_session(iterations + "conv_lstm_model")
     else:
         os.makedirs(model_save_file_path + iterations)
         os.makedirs(model_save_file_path + best)
-    
+
 def save_model_session(sess, file_name):
     saver = tf.train.Saver()
     save_path = saver.save(sess, model_save_file_path + file_name + ".ckpt")
-    
-def restore_model_session(sess, file_name):
-    saver = tf.train.Saver()
-    saver.restore(sess, model_save_file_path + file_name + ".ckpt")
+
+def restore_model_session(file_name):
+    with tf.Session() as sess:
+        saver = tf.train.import_meta_graph(model_save_file_path + file_name + ".ckpt.meta")
+        saver.restore(sess, model_save_file_path + file_name + ".ckpt")
+        print ("restored from ",model_save_file_path + file_name)
 
 def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     # info can be {"train", "val"}
-    if (X_batch is None or y_batch is None or 
+    if (X_batch is None or y_batch is None or
         X_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels) or
         y_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels)):
             print ("Warning: skipping this" + info + " batch because of shape")
             return False
     return True
-    
+
 def train():
     global best_l2_loss
-    
-    # Initialize the variables (i.e. assign their default value)
-    init = tf.global_variables_initializer()
-    
-    # Start training
-    sess = tf.InteractiveSession()
-    sess.run(init)
-    
     # clear logs !
-    log_directory_creation(sess)
-    
+    log_directory_creation()
+
     # conv lstm model
     model = conv_lstm_model()
     model.build_model()
-    
+
     # data read iterator
     data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
-    
+
+    # Initialize the variables (i.e. assign their default value)
+    init = tf.global_variables_initializer()
+
+    # Start training
+    sess = tf.InteractiveSession()
+    sess.run(init)
+
     # Tensorflow Summary
     tf.summary.scalar("train_l2_loss", model.l2_loss)
     summary_merged = tf.summary.merge_all()
