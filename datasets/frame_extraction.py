@@ -61,8 +61,8 @@ class frame_extractor():
 		return train_X, train_y
 
 	def generate_output_video(self, frames):
-		no_videos = frames.shape[1]
-		no_frames = frames.shape[0]
+		no_videos = frames.shape[0]
+		no_frames = frames.shape[1]
 		for i in range(no_videos):
 			cur_video = np.array([frames[j][i] for j in range(no_frames)])
 			skvideo.io.vwrite(os.path.join(self.dir_to_save, str(self.count) + '.mp4'), cur_video)
