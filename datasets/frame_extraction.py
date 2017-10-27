@@ -5,11 +5,12 @@ import numpy as np
 import os
 
 class frame_extractor():
-	def __init__(self,heigth=64, width=64, time_frame=32):
+	def __init__(self,heigth=64, width=64, time_frame=32, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
 		self.heigth = heigth
 		self.width = width
 		self.time_frame = time_frame
 		self.count = 0
+		self.dir_to_save = dir_to_save
 
 	def get_frames(self, list_video_filenames):
 		train_X = []
@@ -59,11 +60,11 @@ class frame_extractor():
 		train_y = np.array(train_y)
 		return train_X, train_y
 
-	def generate_output_video(self, frames, dir_to_save):
+	def generate_output_video(self, frames):
 		no_videos = frames.shape[1]
 		no_frames = frames.shape[0]
 		for i in range(no_videos):
 			cur_video = np.array([frames[j][i] for j in range(no_frames)])
-			skvideo.io.vwrite(os.path.join(dir_to_save, str(self.count) + '.mp4'), cur_video)
+			skvideo.io.vwrite(os.path.join(self.dir_to_save, str(self.count) + '.mp4'), cur_video)
 			self.count += 1
 		

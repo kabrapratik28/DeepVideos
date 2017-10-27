@@ -1,6 +1,7 @@
 # TensorFlow Model !
 import os
 import shutil
+import numpy as np
 import tensorflow as tf
 from cell import ConvLSTMCell
 import sys
@@ -99,9 +100,47 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     if (X_batch is None or y_batch is None or 
         X_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels) or
         y_batch.shape!=(model.batch_size, model.timesteps,heigth,width,channels)):
-            print ("Warning: skipping this" + info + " batch because of shape")
+            print ("Warning: skipping this " + info + " batch because of shape")
             return False
     return True
+
+def test():
+    log_directory_creation()
+    
+    # conv lstm model
+    model = conv_lstm_model()
+    model.build_model()
+    
+    # data read iterator
+    data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
+
+    # Initialize the variables (i.e. assign their default value)
+    init = tf.global_variables_initializer()
+    
+    # Start training
+    sess = tf.InteractiveSession()
+    sess.run(init)
+    
+    global_step = 0
+    for X_batch, y_batch in data.train_next_batch():
+        # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
+        if not is_correct_batch_shape(X_batch, y_batch, model, "test"):
+            # global step not increased !
+            continue
+
+        input_data = np.zeros_like(X_batch)
+        input_data[:,0] = X_batch[:,0]
+
+        for i in range(model.timesteps):
+            output_predicated = sess.run(model.model_output , feed_dict={ model.inputs: input_data })
+            if (i < (model.timesteps-1)):
+                input_data[:,i+1] = output_predicated[:,i]
+                
+        data.frame_ext.generate_output_video(output_predicated)
+        
+        global_step += 1
+        print ("test step ",global_step)
+
     
 def train():
     global best_l2_loss
@@ -167,7 +206,7 @@ def train():
     test_writer.close()
 
 def main():
-    train()
+    test()
 
 if __name__ == '__main__':
     main()
