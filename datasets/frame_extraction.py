@@ -64,7 +64,7 @@ class frame_extractor():
 		no_videos = frames.shape[0]
 		no_frames = frames.shape[1]
 		for i in range(no_videos):
-			cur_video = np.array([frames[j][i] for j in range(no_frames)])
+			cur_video = np.array([frames[i][j] for j in range(no_frames)])
 			skvideo.io.vwrite(os.path.join(self.dir_to_save, str(self.count) + '.mp4'), cur_video)
 			self.count += 1
 		
