@@ -86,6 +86,11 @@ def log_directory_creation(sess):
     else:
         os.makedirs(model_save_file_path + iterations)
         os.makedirs(model_save_file_path + best)
+
+    # output dir creation
+    if not os.path.exists(output_video_save_file_path):
+        os.makedirs(output_video_save_file_path)
+
     
 def save_model_session(sess, file_name):
     saver = tf.train.Saver()

@@ -69,6 +69,7 @@ class frame_extractor():
 		return train_X, train_y
 
 	def generate_output_video(self, frames, filenames):
+
 		frames = self.image_postprocessing(frames)
 		no_videos = frames.shape[0]
 		no_frames = frames.shape[1]
