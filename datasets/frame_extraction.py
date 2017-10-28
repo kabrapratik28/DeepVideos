@@ -9,7 +9,7 @@ class frame_extractor():
 		self.heigth = heigth
 		self.width = width
 		self.time_frame = time_frame
-		self.count = 0
+		#self.count = 0
 		self.dir_to_save = dir_to_save
 
 	def image_processing(self,X):
@@ -42,8 +42,8 @@ class frame_extractor():
 			train_y.append(y)
 		train_X = self.image_processing(np.array(train_X))
 		train_y = self.image_processing(np.array(train_y))
-		return train_X, train_y
-    
+		return train_X, train_y, list_video_filenames
+
 	def get_frames_with_interval_x(self, list_video_filenames, x=2):
 		train_X = []
 		train_y = []
@@ -68,12 +68,13 @@ class frame_extractor():
 		train_y = self.image_processing(np.array(train_y))
 		return train_X, train_y
 
-	def generate_output_video(self, frames):
+	def generate_output_video(self, frames, filenames):
 		frames = self.image_postprocessing(frames)
 		no_videos = frames.shape[0]
 		no_frames = frames.shape[1]
 		for i in range(no_videos):
 			cur_video = np.array([frames[i][j] for j in range(no_frames)])
-			skvideo.io.vwrite(os.path.join(self.dir_to_save, str(self.count) + '.mp4'), cur_video)
-			self.count += 1
+			filename = os.path.splitext(os.path.basename(filenames[i]))[0]
+			skvideo.io.vwrite(os.path.join(self.dir_to_save, filename + '.mp4'), cur_video)
+			#self.count += 1
 		

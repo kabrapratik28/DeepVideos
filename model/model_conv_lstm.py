@@ -119,7 +119,7 @@ def test():
         data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
     
         global_step = 0
-        for X_batch, y_batch in data.train_next_batch():
+        for X_batch, y_batch, filenames in data.test_next_batch():
             # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
             if not is_correct_batch_shape(X_batch, y_batch, model, "test"):
                 # global step not increased !
@@ -129,12 +129,12 @@ def test():
             input_data[:,0] = X_batch[:,0]
 
             for i in range(model.timesteps):
-                output_predicated = sess.run(model.model_output , feed_dict={ model.inputs: input_data })
+                output_predicted = sess.run(model.model_output , feed_dict={ model.inputs: input_data })
                 if (i < (model.timesteps-1)):
-                    input_data[:,i+1] = output_predicated[:,i]
+                    input_data[:,i+1] = output_predicted[:,i]
                     print ("global step ",global_step," time step ",i)
                     
-            data.frame_ext.generate_output_video(output_predicated)
+            data.frame_ext.generate_output_video(output_predicted, filenames)
             
             global_step += 1
             print ("test step ",global_step)
@@ -163,7 +163,7 @@ def train():
         data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
 
         global_step = 0
-        for X_batch, y_batch in data.train_next_batch():
+        for X_batch, y_batch, _ in data.train_next_batch():
             # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
             if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
                 # global step not increased !
@@ -179,7 +179,7 @@ def train():
                 val_l2_loss_history = list()
                 batch_counter = 0
                 # iterate on validation batch ...
-                for X_val, y_val in data.val_next_batch():
+                for X_val, y_val, _ in data.val_next_batch():
                     batch_counter += 1
                     # print ("X_val", X_val.shape, "y_val", y_val.shape)
                     if not is_correct_batch_shape(X_val, y_val, model, "val_"+str(batch_counter)):
