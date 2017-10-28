@@ -12,6 +12,14 @@ class frame_extractor():
 		self.count = 0
 		self.dir_to_save = dir_to_save
 
+	def image_processing(self,X):
+		X = X / 255.0
+		return X
+
+	def image_postprocessing(self,X):
+		X = X * 255.0
+		return X
+
 	def get_frames(self, list_video_filenames):
 		train_X = []
 		train_y = []
@@ -32,8 +40,8 @@ class frame_extractor():
 			y = frames[ 1 : self.time_frame+1]
 			train_X.append(X)
 			train_y.append(y)
-		train_X = np.array(train_X)
-		train_y = np.array(train_y)
+		train_X = self.image_processing(np.array(train_X))
+		train_y = self.image_processing(np.array(train_y))
 		return train_X, train_y
     
 	def get_frames_with_interval_x(self, list_video_filenames, x=2):
@@ -56,11 +64,12 @@ class frame_extractor():
 			y = frames[ 1 : self.time_frame+(1*x)]
 			train_X.append(X)
 			train_y.append(y)
-		train_X = np.array(train_X)
-		train_y = np.array(train_y)
+		train_X = self.image_processing(np.array(train_X))
+		train_y = self.image_processing(np.array(train_y))
 		return train_X, train_y
 
 	def generate_output_video(self, frames):
+		frames = self.image_postprocessing(frames)
 		no_videos = frames.shape[0]
 		no_frames = frames.shape[1]
 		for i in range(no_videos):
