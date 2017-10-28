@@ -13,11 +13,11 @@ class frame_extractor():
 		self.dir_to_save = dir_to_save
 
 	def image_processing(self,X):
-		X = X / 255.0
+		X = (X - 125.0) / 255.0
 		return X
 
 	def image_postprocessing(self,X):
-		X = X * 255.0
+		X = (X * 255.0) + 125.0
 		return X
 
 	def get_frames(self, list_video_filenames):
