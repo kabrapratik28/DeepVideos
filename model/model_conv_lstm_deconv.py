@@ -206,44 +206,44 @@ def train():
 
         while True:
             try:
-		        # data read iterator
-		        data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
+                # data read iterator
+                data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
 
-		        
-		        for X_batch, y_batch, _ in data.train_next_batch():
-		            # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
-		            if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
-		                # global step not increased !
-		                continue
-		            _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
-		                model.inputs: X_batch, model.outputs_exp: y_batch})
-		            train_writer.add_summary(summary, global_step)
-		            
-		            if global_step % checkpoint_iterations == 0:
-		                save_model_session(sess, iterations + "conv_lstm_deconv_model")
-		            
-		            if global_step % best_model_iterations == 0:            
-		                val_l2_loss_history = list()
-		                batch_counter = 0
-		                # iterate on validation batch ...
-		                for X_val, y_val, _ in data.val_next_batch():
-		                    batch_counter += 1
-		                    # print ("X_val", X_val.shape, "y_val", y_val.shape)
-		                    if not is_correct_batch_shape(X_val, y_val, model, "val_"+str(batch_counter)):
-		                        continue
-		                    test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss], feed_dict={model.inputs: X_val, model.outputs_exp: y_val})
-		                    test_writer.add_summary(test_summary, global_step)
-		                    val_l2_loss_history.append(val_l2_loss)
-		                temp_loss = sum(val_l2_loss_history) * 1.0 / len(val_l2_loss_history)
-		                
-		                # save if better !
-		                if best_l2_loss > temp_loss:
-		                    best_l2_loss = temp_loss 
-		                    save_model_session(sess, best + "conv_lstm_deconv_model")
-		                
-		            print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
-		            global_step += 1
-		    except:
+                
+                for X_batch, y_batch, _ in data.train_next_batch():
+                    # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
+                    if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
+                        # global step not increased !
+                        continue
+                    _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
+                        model.inputs: X_batch, model.outputs_exp: y_batch})
+                    train_writer.add_summary(summary, global_step)
+                    
+                    if global_step % checkpoint_iterations == 0:
+                        save_model_session(sess, iterations + "conv_lstm_deconv_model")
+                    
+                    if global_step % best_model_iterations == 0:            
+                        val_l2_loss_history = list()
+                        batch_counter = 0
+                        # iterate on validation batch ...
+                        for X_val, y_val, _ in data.val_next_batch():
+                            batch_counter += 1
+                            # print ("X_val", X_val.shape, "y_val", y_val.shape)
+                            if not is_correct_batch_shape(X_val, y_val, model, "val_"+str(batch_counter)):
+                                continue
+                            test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss], feed_dict={model.inputs: X_val, model.outputs_exp: y_val})
+                            test_writer.add_summary(test_summary, global_step)
+                            val_l2_loss_history.append(val_l2_loss)
+                        temp_loss = sum(val_l2_loss_history) * 1.0 / len(val_l2_loss_history)
+                        
+                        # save if better !
+                        if best_l2_loss > temp_loss:
+                            best_l2_loss = temp_loss 
+                            save_model_session(sess, best + "conv_lstm_deconv_model")
+                        
+                    print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
+                    global_step += 1
+            except:
                 pass # ignore problems and continue looping ...
 
         train_writer.close()
