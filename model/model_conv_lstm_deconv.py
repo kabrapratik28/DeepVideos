@@ -24,7 +24,7 @@ l2_val = 0.00005
 class conv_lstm_deconv_model():
     def __init__(self):
         """Parameter initialization"""
-        self.batch_size = 32
+        self.batch_size = 8
         self.number_of_images_to_show = 4
         self.timesteps = 32
         self.shape = [64, 64]  # Image shape
@@ -254,7 +254,7 @@ def train():
                         continue
                     _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
                         model.inputs: X_batch, model.outputs_exp: y_batch})
-                    print ("summary ... ",global_step)
+                    # print ("summary ... ",global_step)
                     train_writer.add_summary(summary, global_step)
 
                     if global_step % checkpoint_iterations == 0:
