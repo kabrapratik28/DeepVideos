@@ -24,8 +24,9 @@ l2_val = 0.00005
 class conv_lstm_deconv_model():
     def __init__(self):
         """Parameter initialization"""
-        self.batch_size = 2
+        self.batch_size = 8
         self.number_of_images_to_show = 4
+        assert self.number_of_images_to_show <= self.batch_size
         self.timesteps = 32
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
