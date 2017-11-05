@@ -31,7 +31,7 @@ class conv_lstm_deconv_model():
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
         self.channels = 1
-        self.filters = [256, 256]  # 2 stacked conv lstm filters
+        self.filters = [8]  # 2 stacked conv lstm filters
         self.images_summary_timesteps = [0, 4, 12, 15]
 
         # Create a placeholder for videos.
@@ -55,27 +55,13 @@ class conv_lstm_deconv_model():
     def conv_layer(self,conv_input,reuse=None):
         # conv before lstm
         with tf.variable_scope('conv_before_lstm',reuse=reuse):
-            net = slim.conv2d(conv_input, 32, [3, 3], scope='conv_1', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 64, [3, 3], stride=2, scope='conv_2', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv_3', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 256, [3, 3], scope='conv_4', weights_initializer=trunc_normal(0.01),
+            net = slim.conv2d(conv_input, 8, [3, 3], scope='conv_1', weights_initializer=trunc_normal(0.01),
                               weights_regularizer=regularizers.l2_regularizer(l2_val))
             return net
 
     def deconv_layer(self,deconv_input,reuse=None):
         with tf.variable_scope('deconv_after_lstm',reuse=reuse):
-            net = slim.conv2d_transpose(deconv_input, 256, [3, 3], scope='deconv_4',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 128, [3, 3], scope='deconv_3', weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 64, [3, 3], stride=2, scope='deconv_2',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 32, [3, 3], stride=2, scope='deconv_1',
+            net = slim.conv2d_transpose(deconv_input, 8, [3, 3], scope='deconv_4',
                                         weights_initializer=trunc_normal(0.01),
                                         weights_regularizer=regularizers.l2_regularizer(l2_val))
             net = slim.conv2d_transpose(net, self.channels, [3, 3], activation_fn=tf.tanh, scope='deconv_0',
@@ -147,7 +133,7 @@ class conv_lstm_deconv_model():
         self.l2_loss = l2_loss
 
     def optimize(self):
-        train_step = tf.train.AdamOptimizer().minimize(self.l2_loss)
+        train_step = tf.train.AdamOptimizer(1e-5).minimize(self.l2_loss)
         self.optimizer = train_step
 
     def build_model(self):
