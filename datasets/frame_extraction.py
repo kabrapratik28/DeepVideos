@@ -3,6 +3,7 @@ import skvideo.io
 import cv2
 import numpy as np
 import os
+from moviepy.editor import *
 
 class frame_extractor():
 	def __init__(self,heigth=64, width=64, time_frame=32, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
@@ -78,4 +79,7 @@ class frame_extractor():
 			filename = os.path.splitext(os.path.basename(filenames[i]))[0]
 			skvideo.io.vwrite(os.path.join(self.dir_to_save, filename + '.mp4'), cur_video)
 			#self.count += 1
-		
+
+	def generate_gif_videos(self, input_file_path, output_file_path, speed):
+		video_freeze = (VideoFileClip(input_file_path).speedx(speed))
+		video_freeze.write_gif(output_file_path)
