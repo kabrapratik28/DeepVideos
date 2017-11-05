@@ -4,16 +4,18 @@ from frame_extraction import frame_extractor
 import cPickle
 
 class datasets(object):
-    def __init__(self, batch_size=64, val_split=0.005, test_split=0.005, heigth=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', ):
+    def __init__(self, batch_size=64, val_split=0.005, test_split=0.005, heigth=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', mnist_path='mnist_test_seq.npy', total_videos=10000):
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
         self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
-        self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
+        #self.flagged_activities = ['PlayingDaf', 'BodyWeightSquats', 'Nunchucks', 'ShavingBeard', 'SkyDiving']
         self.data = None
-        self.frame_ext = frame_extractor(heigth=heigth,width=width)
-        self.videos_to_text_file()
-        self.load_problematic_videos()
+        mnist_path = os.path.join(self.DIR, mnist_path)
+        self.frame_ext = frame_extractor(heigth=heigth,width=width,mnist_file=mnist_path)
+        #self.videos_to_text_file()
+        #self.load_problematic_videos()
+        self.total_videos = total_videos
         self.train_test_split(val_split,test_split)
 
     def load_problematic_videos(self):
@@ -40,16 +42,17 @@ class datasets(object):
         """
         data = {}
         unseen = []
-        seen = []
-        for line in open(self.output_filename):
-            line = line.rstrip('\n')
-            if line in self.blacklist:
-                continue
-            if any(substring in line for substring in self.flagged_activities):
-                unseen.append(line)
-            else:
-                seen.append(line)
+        # seen = []
+        # for line in open(self.output_filename):
+        #     line = line.rstrip('\n')
+        #     if line in self.blacklist:
+        #         continue
+        #     if any(substring in line for substring in self.flagged_activities):
+        #         unseen.append(line)
+        #     else:
+        #         seen.append(line)
 
+        seen = range(self.total_videos)
         datasize = len(seen)
 
         #Random Shuffle

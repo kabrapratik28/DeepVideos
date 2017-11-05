@@ -5,10 +5,12 @@ import numpy as np
 import os
 
 class frame_extractor():
-	def __init__(self,heigth=64, width=64, time_frame=32, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
+	def __init__(self,heigth=64, width=64, time_frame=19, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/"), mnist_file='../mnist_test_seq.npy'):
 		self.heigth = heigth
 		self.width = width
 		self.time_frame = time_frame
+		self.mnist_file=mnist_file
+		self.data = np.load(self.mnist_file)
 		#self.count = 0
 		self.dir_to_save = dir_to_save
 
@@ -20,29 +22,46 @@ class frame_extractor():
 		X = (X * 127.5) + 127.5
 		return X
 
-	def get_frames(self, list_video_filenames):
+	# def get_frames(self, list_video_filenames):
+	# 	train_X = []
+	# 	train_y = []
+	# 	for each_filename in list_video_filenames:
+	# 		video_data = skvideo.io.vread(each_filename)
+	# 		N, H, W, C = video_data.shape
+	# 		max_frame_number = N - (self.time_frame+1)
+	# 		frame_index = 0
+	# 		if max_frame_number>=1:
+	# 			frame_index = random.randint(0,max_frame_number)
+	# 		data = video_data[frame_index : frame_index+self.time_frame+1]
+	# 		frames = []
+	# 		for each_frame in data:
+	# 			resized_image = cv2.resize(each_frame, (self.heigth,self.width))
+	# 			frames.append(resized_image)
+	# 		frames = np.array(frames)
+	# 		X = frames[ 0 : self.time_frame]
+	# 		y = frames[ 1 : self.time_frame+1]
+	# 		train_X.append(X)
+	# 		train_y.append(y)
+	# 	train_X = self.image_processing(np.array(train_X))
+	# 	train_y = self.image_processing(np.array(train_y))
+	# 	return train_X, train_y, list_video_filenames
+
+	def get_frames(self, list_video_indices):
 		train_X = []
 		train_y = []
-		for each_filename in list_video_filenames:
-			video_data = skvideo.io.vread(each_filename)
-			N, H, W, C = video_data.shape
-			max_frame_number = N - (self.time_frame+1)
-			frame_index = 0 
-			if max_frame_number>=1:
-				frame_index = random.randint(0,max_frame_number)
-			data = video_data[frame_index : frame_index+self.time_frame+1]
-			frames = []
-			for each_frame in data:
-				resized_image = cv2.resize(each_frame, (self.heigth,self.width))
-				frames.append(resized_image)
-			frames = np.array(frames)
-			X = frames[ 0 : self.time_frame]
-			y = frames[ 1 : self.time_frame+1]
+		for each_index in list_video_indices:
+			video_data = np.array([i[each_index] for i in self.data])
+			# reshape the above video in 4-D tensor to keep everything consistent; so no_of_channels = C = 1
+			N, H, W = video_data.shape
+			video_data = np.reshape(video_data, (N, H, W, 1))
+
+			X = video_data[0: self.time_frame]
+			y = video_data[1: self.time_frame + 1]
 			train_X.append(X)
 			train_y.append(y)
 		train_X = self.image_processing(np.array(train_X))
 		train_y = self.image_processing(np.array(train_y))
-		return train_X, train_y, list_video_filenames
+		return train_X, train_y, list_video_indices
 
 	def get_frames_with_interval_x(self, list_video_filenames, x=2):
 		train_X = []
@@ -51,7 +70,7 @@ class frame_extractor():
 			video_data = skvideo.io.vread(each_filename)
 			N, H, W, C = video_data.shape
 			max_frame_number = N - ((self.time_frame + 1) * x)
-			frame_index = 0 
+			frame_index = 0
 			if max_frame_number>=1:
 				frame_index = random.randint(0,max_frame_number)
 			data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]

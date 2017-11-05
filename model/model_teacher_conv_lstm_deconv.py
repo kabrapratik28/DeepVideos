@@ -27,12 +27,12 @@ class conv_lstm_deconv_model():
         self.batch_size = 8
         self.number_of_images_to_show = 4
         assert self.number_of_images_to_show <= self.batch_size
-        self.timesteps = 32
+        self.timesteps = 19
         self.shape = [64, 64]  # Image shape
         self.kernel = [3, 3]
-        self.channels = 3
+        self.channels = 1
         self.filters = [256, 256]  # 2 stacked conv lstm filters
-        self.images_summary_timesteps = [0, 4, 16, 31]
+        self.images_summary_timesteps = [0, 4, 12, 15]
 
         # Create a placeholder for videos.
         self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.timesteps] + self.shape + [self.channels],
@@ -78,7 +78,7 @@ class conv_lstm_deconv_model():
             net = slim.conv2d_transpose(net, 32, [3, 3], stride=2, scope='deconv_1',
                                         weights_initializer=trunc_normal(0.01),
                                         weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 3, [3, 3], activation_fn=tf.tanh, scope='deconv_0',
+            net = slim.conv2d_transpose(net, self.channels, [3, 3], activation_fn=tf.tanh, scope='deconv_0',
                                         weights_initializer=trunc_normal(0.01),
                                         weights_regularizer=regularizers.l2_regularizer(l2_val))
             return net
@@ -128,11 +128,14 @@ class conv_lstm_deconv_model():
         time_sliced_images = tf.slice(self.inputs, [0, 0, 0, 0, 0],
                                       [self.number_of_images_to_show, 1, self.shape[0], self.shape[1], self.channels])
         time_sliced_images = tf.squeeze(time_sliced_images,[1])
+        print (time_sliced_images)
         tf.summary.image('input_images', time_sliced_images, self.number_of_images_to_show)
         for each_timestep in self.images_summary_timesteps:
+            print (self.model_output)
             time_sliced_images = tf.slice(self.model_output, [0, each_timestep, 0, 0, 0],
                                           [self.number_of_images_to_show, 1, self.shape[0], self.shape[1], self.channels])
             time_sliced_images = tf.squeeze(time_sliced_images,[1])
+            print ("...")
             tf.summary.image('output_images_step_' + str(each_timestep), time_sliced_images,
                              self.number_of_images_to_show)
 
@@ -165,7 +168,7 @@ checkpoint_iterations = 25
 best_model_iterations = 25
 best_l2_loss = float("inf")
 heigth, width = 64, 64
-channels = 3
+channels = 1
 
 
 def log_directory_creation(sess):
@@ -260,54 +263,51 @@ def train():
         test_writer = tf.summary.FileWriter(log_dir_file_path + "/test", sess.graph)
         global_step = 0
 
-        while True:
-            try:
-                # data read iterator
-                data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
+        # data read iterator
+        print ("loading data ... ")
+        data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
+        print ("loaded data .... ")
+        for X_batch, y_batch, _ in data.train_next_batch():
+            # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
+            if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
+                # global step not increased !
+                continue
+            _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
+                model.inputs: X_batch, model.outputs_exp: y_batch,
+                model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
+                model.prob_select_teacher : 0.5 })
 
-                for X_batch, y_batch, _ in data.train_next_batch():
-                    # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
-                    if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
-                        # global step not increased !
+            print ("summary ... ",global_step)
+            train_writer.add_summary(summary, global_step)
+
+            if global_step % checkpoint_iterations == 0:
+                save_model_session(sess, iterations + "conv_lstm_deconv_model")
+
+            if global_step % best_model_iterations == 0:
+                val_l2_loss_history = list()
+                batch_counter = 0
+                # iterate on validation batch ...
+                for X_val, y_val, _ in data.val_next_batch():
+                    batch_counter += 1
+                    # print ("X_val", X_val.shape, "y_val", y_val.shape)
+                    if not is_correct_batch_shape(X_val, y_val, model, "val_" + str(batch_counter)):
                         continue
-                    _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
-                        model.inputs: X_batch, model.outputs_exp: y_batch, 
-                        model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
-                        model.prob_select_teacher : 0.5 })
+                    test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss],
+                                                         feed_dict={model.inputs: X_val,
+                                                                    model.outputs_exp: y_val,
+                                                                    model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
+                                                                    model.prob_select_teacher : -1})
+                    test_writer.add_summary(test_summary, global_step)
+                    val_l2_loss_history.append(val_l2_loss)
+                temp_loss = sum(val_l2_loss_history) * 1.0 / len(val_l2_loss_history)
 
-                    print ("summary ... ",global_step)
-                    train_writer.add_summary(summary, global_step)
+                # save if better !
+                if best_l2_loss > temp_loss:
+                    best_l2_loss = temp_loss
+                    save_model_session(sess, best + "conv_lstm_deconv_model")
 
-                    if global_step % checkpoint_iterations == 0:
-                        save_model_session(sess, iterations + "conv_lstm_deconv_model")
-
-                    if global_step % best_model_iterations == 0:
-                        val_l2_loss_history = list()
-                        batch_counter = 0
-                        # iterate on validation batch ...
-                        for X_val, y_val, _ in data.val_next_batch():
-                            batch_counter += 1
-                            # print ("X_val", X_val.shape, "y_val", y_val.shape)
-                            if not is_correct_batch_shape(X_val, y_val, model, "val_" + str(batch_counter)):
-                                continue
-                            test_summary, val_l2_loss = sess.run([summary_merged, model.l2_loss],
-                                                                 feed_dict={model.inputs: X_val,
-                                                                            model.outputs_exp: y_val,
-                                                                            model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
-                                                                            model.prob_select_teacher : -1})
-                            test_writer.add_summary(test_summary, global_step)
-                            val_l2_loss_history.append(val_l2_loss)
-                        temp_loss = sum(val_l2_loss_history) * 1.0 / len(val_l2_loss_history)
-
-                        # save if better !
-                        if best_l2_loss > temp_loss:
-                            best_l2_loss = temp_loss
-                            save_model_session(sess, best + "conv_lstm_deconv_model")
-
-                    print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
-                    global_step += 1
-            except:
-                pass  # ignore problems and continue looping ...
+            print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
+            global_step += 1
 
         train_writer.close()
         test_writer.close()
