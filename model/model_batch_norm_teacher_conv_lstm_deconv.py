@@ -199,7 +199,7 @@ class conv_lstm_deconv_model():
 
     def optimize(self):
         train_step = tf.train.AdamOptimizer()
-        self.optimizer = slim.learning.create_train_op(self.l2_loss, train_step, global_step=self.step, summarize_gradients=True)
+        self.optimizer = slim.learning.create_train_op(self.l2_loss, train_step, global_step=self.step) # summarize_gradients=True
 
     def build_model(self):
         self.create_model()
@@ -318,7 +318,7 @@ def train():
             try:
                 # data read iterator
                 data = datasets(batch_size=model.batch_size, heigth=heigth, width=width)
-
+                print ("data read ... ")
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
                     if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
@@ -363,7 +363,7 @@ def train():
                     print ("Iteration ", global_step, " best_l2_loss ", best_l2_loss)
                     global_step += 1
             except:
-                pass  # ignore problems and continue looping ...
+                print ("Some exception is happening .... ")  # ignore problems and continue looping ...
 
         train_writer.close()
         test_writer.close()
