@@ -35,6 +35,8 @@ class conv_lstm_deconv_model():
         self.images_summary_timesteps = [0, 4, 16, 31]
 
         # Create a placeholder for videos.
+        self.is_training = tf.placeholder(tf.bool, [])
+        self.step = tf.get_variable("step", [], initializer=tf.constant_initializer(0.0), trainable=False)
         self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.timesteps] + self.shape + [self.channels],
                                      name="conv_lstm_deconv_inputs")  # (batch_size, timestep, H, W, C)
         self.outputs_exp = tf.placeholder(tf.float32, [self.batch_size, self.timesteps] + self.shape + [self.channels],
@@ -56,25 +58,32 @@ class conv_lstm_deconv_model():
         # conv before lstm
         with tf.variable_scope('conv_before_lstm',reuse=reuse):
             net = slim.conv2d(conv_input, 32, [3, 3], scope='conv_1', weights_initializer=trunc_normal(0.01),
-                          weights_regularizer=regularizers.l2_regularizer(l2_val))
+                          weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 32, [3, 3], scope='conv_2', weights_initializer=trunc_normal(0.01),
-                                      weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                      weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 64, [3, 3], scope='conv_3', weights_initializer=trunc_normal(0.01),
-                                      weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                      weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 64, [3, 3], scope='conv_4', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
+                              weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv_5', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
+                              weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 128, [3, 3], scope='conv_6', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
+                              weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv_7', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
+                              weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d(net, 256, [3, 3], scope='conv_8', weights_initializer=trunc_normal(0.01),
                               weights_regularizer=regularizers.l2_regularizer(l2_val))
@@ -85,34 +94,42 @@ class conv_lstm_deconv_model():
             
             net = slim.conv2d_transpose(deconv_input, 256, [3, 3], scope='deconv_8',
                                     weights_initializer=trunc_normal(0.01),
-                                    weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                    weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 256, [3, 3], scope='deconv_7', weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 128, [3, 3], stride=2, scope='deconv_6',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 128, [3, 3], scope='deconv_5',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 64, [3, 3], stride=2, scope='deconv_4',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 64, [3, 3], scope='deconv_3',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 32, [3, 3], scope='deconv_2',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 32, [3, 3], scope='deconv_1',
                                         weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+                                        weights_regularizer=regularizers.l2_regularizer(l2_val),
+                          normalizer_fn=slim.batch_norm, normalizer_params={'is_training': self.is_training})
 
             net = slim.conv2d_transpose(net, 3, [3, 3], activation_fn=tf.tanh, scope='deconv_0',
                                         weights_initializer=trunc_normal(0.01),
@@ -181,8 +198,8 @@ class conv_lstm_deconv_model():
         self.l2_loss = l2_loss
 
     def optimize(self):
-        train_step = tf.train.AdamOptimizer().minimize(self.l2_loss)
-        self.optimizer = train_step
+        train_step = tf.train.AdamOptimizer()
+        self.optimizer = slim.learning.create_train_op(self.l2_loss, train_step, global_step=self.step, summarize_gradients=True)
 
     def build_model(self):
         self.create_model()
@@ -307,12 +324,13 @@ def train():
                     if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
                         # global step not increased !
                         continue
-                    _, summary = sess.run([model.optimizer, summary_merged], feed_dict={
+                    _, step, summary = sess.run([model.optimizer, model.step, summary_merged], feed_dict={
                         model.inputs: X_batch, model.outputs_exp: y_batch, 
                         model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
-                        model.prob_select_teacher : 0.5 })
+                        model.prob_select_teacher : 0.7,
+                        model.is_training : True})
 
-                    print ("summary ... ",global_step)
+                    print ("summary ... ",step)
                     train_writer.add_summary(summary, global_step)
 
                     if global_step % checkpoint_iterations == 0:
@@ -331,7 +349,8 @@ def train():
                                                                  feed_dict={model.inputs: X_val,
                                                                             model.outputs_exp: y_val,
                                                                             model.teacher_force_sampling: np.random.uniform(size=model.timesteps),
-                                                                            model.prob_select_teacher : -1})
+                                                                            model.prob_select_teacher : -1,
+                                                                            model.is_training : False})
                             test_writer.add_summary(test_summary, global_step)
                             val_l2_loss_history.append(val_l2_loss)
                         temp_loss = sum(val_l2_loss_history) * 1.0 / len(val_l2_loss_history)
