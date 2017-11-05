@@ -16,6 +16,7 @@ from datasets.batch_generator import datasets
 slim = tf.contrib.slim
 from tensorflow.python.ops import init_ops
 from tensorflow.contrib.layers.python.layers import regularizers
+from tensorflow.python.ops import control_flow_ops
 
 trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 l2_val = 0.00005
@@ -200,6 +201,11 @@ class conv_lstm_deconv_model():
     def optimize(self):
         train_step = tf.train.AdamOptimizer()
         self.optimizer = slim.learning.create_train_op(self.l2_loss, train_step, global_step=self.step) # summarize_gradients=True
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        if update_ops:
+	        updates = tf.group(*update_ops)
+	        self.l2_loss = control_flow_ops.with_dependencies([updates], self.l2_loss)
+
 
     def build_model(self):
         self.create_model()
