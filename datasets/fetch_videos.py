@@ -38,7 +38,7 @@ class YoutubeFetcher(object):
             print("Downloading file {} of {}".format(count, len(self.video_files)))
             try:
 		output_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../data/sports-1m")
-                YouTube(link).streams.last().download(output_path=output_path)
+                YouTube(link).streams.filter(subtype='mp4').last().download(output_path=output_path)
             except:
                 print("Could'nt download {}".format(link))
 
