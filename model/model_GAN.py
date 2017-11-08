@@ -19,8 +19,9 @@ trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 # Contants
 image_channels = 3
 time_frames_to_consider = 4
-heigth_train= 64
-width_train= 64
+time_frames_to_predict = 4
+heigth_train= 210
+width_train= 160
 heigth_test= 210
 width_test= 160
 # +1 for input from previous layer !
@@ -54,7 +55,7 @@ best = "best/"
 checkpoint_iterations = 25
 best_model_iterations = 25
 best_loss = float("inf")
-heigth, width = 64, 64
+heigth, width = 210, 160
 channels = 3
 
 ## ===================  COPIED CODE ==========================
@@ -308,7 +309,7 @@ class GenerativeNetwork:
 
         self.train_summary_merged = tf.summary.merge([train_loss, psnr_error_train_s, sharpdiff_error_train_s]+images_to_show_train)
         self.test_summary_merged = tf.summary.merge([psnr_error_test_s, sharpdiff_error_test_s]+images_to_show_test)
-
+        
 # ======================== MODEL ENDS ========================
 
 def log_directory_creation(sess):
@@ -347,6 +348,69 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
         return False
     return True
 
+def images_to_channels(X_batch):
+    """
+    This utility convert (Batch Size, TimeSteps, H, W, C) => (Batch Size, H, W, C, TimeSteps) =>  (Batch Size, H, W, C * TimeSteps)
+    Refer Input of Mutli Scale Architecture !
+    """
+    input_data = X_batch.transpose(0,2,3,4,1)
+    input_data = input_data.reshape(list(input_data.shape[:-2])+[-1]) 
+    return input_data
+
+def remove_oldest_image_add_new_image(X_batch,y_batch):
+    """
+    While frame predications each time step remove oldest image and newest image 
+    """
+    removed_older_image = X_batch[:,:,:,channels:]
+    new_batch = np.append(removed_older_image, y_batch, axis=3)
+    return new_batch
+
+def test():
+    with tf.Session() as sess:
+        model = GenerativeNetwork(heigth_train, width_train, heigth_test, width_test, scale_level_feature_maps, scale_level_kernel_size)
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+        log_directory_creation(sess)
+
+        # data read iterator
+        data = datasets(batch_size=batch_size, heigth=width, width=heigth)
+        
+        global_step = 0
+        for X_batch, y_batch, filenames in data.train_next_batch():
+            # print ("X_batch ... ", X_batch.shape, "y_batch", y_batch.shape)
+            if not is_correct_batch_shape(X_batch, y_batch, model, "test"):
+                # global step not increased !
+                continue
+
+            X_input = X_batch[:,:time_frames_to_consider]
+            X_input = images_to_channels(X_input)
+            Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
+            c = 0
+            for each_time_step in range(time_frames_to_predict):
+                # fetch last layer output
+                y_current_step = sess.run(model.each_scale_predication_train[-1],feed_dict={
+                                model.input_train : X_input,
+                    })
+                Y_output[:,each_time_step,:,:,:] = y_current_step
+                X_input = remove_oldest_image_add_new_image(X_input,y_current_step)
+                print ("c",c)
+                c += 1
+            # input_data = np.zeros_like(X_batch)
+            # input_data[:, 0] = X_batch[:, 0]
+
+            # for i in range(model.timesteps):
+            #     output_predicted = sess.run(model.model_output, feed_dict={model.inputs: input_data})
+            #     if (i < (model.timesteps - 1)):
+            #         input_data[:, i + 1] = output_predicted[:, i]
+            #         print ("global step ", global_step, " time step ", i)
+
+            data.frame_ext.generate_output_video(Y_output, filenames)
+
+            global_step += 1
+            print ("test step ", global_step)        
+
+
 def train():
     global best_loss
     with tf.Session() as sess:
@@ -362,6 +426,7 @@ def train():
         train_writer = tf.summary.FileWriter(log_dir_file_path + "/train", sess.graph)
         test_writer = tf.summary.FileWriter(log_dir_file_path + "/test", sess.graph)
         global_step = 0
+        count_iter = 0
 
         while True:
             try:
@@ -376,8 +441,7 @@ def train():
                     for timesteps in range(time_frames_to_consider,28):
                         
                         input_train = X_batch[:,timesteps-4:timesteps,:,:,:]
-                        input_train = input_train.transpose(0,2,3,4,1)
-                        input_train = input_train.reshape(list(input_train.shape[:-2])+[-1]) 
+                        input_train = images_to_channels(input_train)
 
                         output_train = X_batch[:,timesteps,:,:,:]
                         
@@ -386,7 +450,8 @@ def train():
                                             model.output_train:output_train})
 
                         print ("summary ... ",global_step, "timesteps ... ",timesteps)
-                        train_writer.add_summary(summary)
+                        train_writer.add_summary(summary,count_iter)
+                        count_iter += 1
 
                     if global_step % checkpoint_iterations == 0:
                         save_model_session(sess, iterations + "gan_generative_only_model")
@@ -425,7 +490,7 @@ def train():
 
 
 def main():
-    train()
+    test()
 
 if __name__ == '__main__':
     main()
