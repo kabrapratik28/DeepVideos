@@ -93,6 +93,7 @@ class datasets(object):
                 yield self.frame_ext.get_frames_with_interval_x(curr_batch, x= self.interval)
 
     def fixed_next_batch(self,data_iter):
+        # Batch size less than threshold
         assert self.batch_size < 50
 
         is_done = False
@@ -122,6 +123,7 @@ class datasets(object):
 
     def get_custom_test_data(self):
         new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1])
+        # 3 good videos
         vids = ['/v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
         tv = self.data['train'] + self.data['validation']
         new_test = [x for vid in vids for x in tv if vid in x]
