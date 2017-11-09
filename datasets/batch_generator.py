@@ -4,12 +4,16 @@ from frame_extraction import frame_extractor
 import cPickle
 
 class datasets(object):
-    def __init__(self, batch_size=32, val_split=0.05, test_split=0.05, height=64, width=64, DIR='../../data', output_filename='../../all_videos.txt', interval=1,):
+    def __init__(self, batch_size=32, val_split=0.05, test_split=0.05, height=64, width=64,
+                 DIR='../../data', output_filename='../../all_videos.txt',
+                 interval=1, custom_test_size=[160,210]):
+
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
         self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
         self.data = None
+        self.custom_test_size = custom_test_size
         self.interval = interval
         self.frame_ext = frame_extractor(height=height,width=width)
         self.videos_to_text_file()
@@ -113,3 +117,10 @@ class datasets(object):
     def test_next_batch(self,):
         val_iter = iter(self.data['test'])
         return self.fixed_next_batch(val_iter)
+
+    def get_custom_test_data(self):
+        new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1])
+        vids = ['/v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
+        tv = self.data['train'] + self.data['validation']
+        new_test = [x for vid in vids for x in tv if vid in x]
+        return new_frame_ext.get_frames_with_interval_x(new_test, x=self.interval, randomize=False)
