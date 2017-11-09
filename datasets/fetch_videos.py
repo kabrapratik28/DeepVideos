@@ -38,14 +38,14 @@ class YoutubeFetcher(object):
             print("Downloading file {} of {}".format(count, len(self.video_files)))
             try:
 		output_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../data/sports-1m")
-                YouTube(link).streams.filter(subtype='mp4').last().download(output_path=output_path)
+                YouTube(link).streams.filter(subtype='mp4', only_video=True).last().download(output_path=output_path)
             except:
                 print("Could'nt download {}".format(link))
 
             count += 1
 def main():
     class_ids=[412,122,60,165,383]
-    ytf = YoutubeFetcher(2, by_class=False, class_ids= None )
+    ytf = YoutubeFetcher(20, by_class=False, class_ids= None )
     ytf.download()
 
 if __name__ == "__main__":
