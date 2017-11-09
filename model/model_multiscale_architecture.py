@@ -20,10 +20,10 @@ trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 image_channels = 3
 time_frames_to_consider = 4
 time_frames_to_predict = 4
-heigth_train= 210
-width_train= 160
-heigth_test= 210
-width_test= 160
+heigth_train= 64
+width_train= 64
+heigth_test= 160
+width_test= 210
 # +1 for input from previous layer !
 scale_level_feature_maps= [[128, 256, 128, 3],
                            [128, 256, 128, 3],
@@ -55,7 +55,7 @@ best = "best/"
 checkpoint_iterations = 25
 best_model_iterations = 25
 best_loss = float("inf")
-heigth, width = 210, 160
+heigth, width = 32, 32
 channels = 3
 
 ## ===================  COPIED CODE ==========================
@@ -431,7 +431,7 @@ def train():
         while True:
             try:
                 # data read iterator
-                data = datasets(batch_size=batch_size, heigth=heigth, width=width)
+                data = datasets(batch_size=batch_size, height=heigth, width=width)
 
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
@@ -490,7 +490,7 @@ def train():
 
 
 def main():
-    test()
+    train()
 
 if __name__ == '__main__':
     main()
