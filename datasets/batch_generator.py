@@ -6,7 +6,7 @@ import cPickle
 class datasets(object):
     def __init__(self, batch_size=32, val_split=0.05, test_split=0.05, height=64, width=64,
                  DIR='../../data', output_filename='../../all_videos.txt',
-                 interval=1, custom_test_size=[160,210]):
+                 interval=1, custom_test_size=[160,210], dataset='UCF'):
 
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
@@ -19,6 +19,7 @@ class datasets(object):
         self.videos_to_text_file()
         self.load_problematic_videos()
         self.train_test_split(val_split,test_split)
+        self.dataset = dataset
 
     def load_problematic_videos(self):
         _frames_file = os.path.join(self.file_path, 'frames.pickle')
@@ -69,7 +70,8 @@ class datasets(object):
         self.data = data
 
     def train_next_batch(self,):
-        """Returns lists of length batch_size.
+        """
+        Returns lists of length batch_size.
         This is a generator function, and it returns lists of the
         entries from the supplied iterator.  Each list will have
         batch_size entries, although the final list may be shorter.
