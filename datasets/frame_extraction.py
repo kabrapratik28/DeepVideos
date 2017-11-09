@@ -21,53 +21,32 @@ class frame_extractor():
 		X = (X * 127.5) + 127.5
 		return X
 
-	def get_frames(self, list_video_filenames):
+	def get_frames_with_interval_x(self, list_video_filenames, x, randomize=True):
 		train_X = []
 		train_y = []
 		for each_filename in list_video_filenames:
-			video_data = skvideo.io.vread(each_filename)
-			N, H, W, C = video_data.shape
-			max_frame_number = N - (self.time_frame+1)
-			frame_index = 0
-			if max_frame_number>=1:
-				frame_index = random.randint(0,max_frame_number)
-			data = video_data[frame_index : frame_index+self.time_frame+1]
-			frames = []
-			for each_frame in data:
-				resized_image = cv2.resize(each_frame, (self.width,self.height))
-				frames.append(resized_image)
-			frames = np.array(frames)
-			X = frames[ 0 : self.time_frame]
-			y = frames[ 1 : self.time_frame+1]
-			train_X.append(X)
-			train_y.append(y)
+			try:
+				video_data = skvideo.io.vread(each_filename)
+				N, H, W, C = video_data.shape
+				max_frame_number = N - ((self.time_frame + 1) * x)
+				frame_index = 0
+				if max_frame_number>=1 and randomize == True:
+					frame_index = random.randint(0,max_frame_number)
+				data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]
+				frames = []
+				for each_frame in data:
+					resized_image = cv2.resize(each_frame, (self.width,self.height))
+					frames.append(resized_image)
+				frames = np.array(frames)
+				X = frames[ 0 : self.time_frame]
+				y = frames[ 1 : self.time_frame+(1*x)]
+				train_X.append(X)
+				train_y.append(y)
+			except RuntimeError:
+				print("Error in batch iterator, skipping video")
 		train_X = self.image_processing(np.array(train_X))
 		train_y = self.image_processing(np.array(train_y))
 		return train_X, train_y, list_video_filenames
-
-	def get_frames_with_interval_x(self, list_video_filenames, x=2):
-		train_X = []
-		train_y = []
-		for each_filename in list_video_filenames:
-			video_data = skvideo.io.vread(each_filename)
-			N, H, W, C = video_data.shape
-			max_frame_number = N - ((self.time_frame + 1) * x)
-			frame_index = 0
-			if max_frame_number>=1:
-				frame_index = random.randint(0,max_frame_number)
-			data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]
-			frames = []
-			for each_frame in data:
-				resized_image = cv2.resize(each_frame, (self.width,self.height))
-				frames.append(resized_image)
-			frames = np.array(frames)
-			X = frames[ 0 : self.time_frame]
-			y = frames[ 1 : self.time_frame+(1*x)]
-			train_X.append(X)
-			train_y.append(y)
-		train_X = self.image_processing(np.array(train_X))
-		train_y = self.image_processing(np.array(train_y))
-		return train_X, train_y
 
 	def generate_output_video(self, frames, filenames):
 
