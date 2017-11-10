@@ -127,4 +127,6 @@ class datasets(object):
         vids = ['/v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
         tv = self.data['train'] + self.data['validation']
         new_test = [x for vid in vids for x in tv if vid in x]
-        return new_frame_ext.get_frames_with_interval_x(new_test, x=self.interval, randomize=False)
+        while True:
+            yield new_frame_ext.get_frames_with_interval_x(new_test, x=self.interval, randomize=False)
+            break

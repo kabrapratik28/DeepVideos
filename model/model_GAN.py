@@ -22,9 +22,8 @@ time_frames_to_consider = 4
 time_frames_to_predict = 4
 heigth_train= 64
 width_train= 64
-heigth_test= 160
-width_test= 210
-
+custom_test_size=[160,210]
+heigth_test, width_test = custom_test_size
 #===================================================================
 #               Generative Model Parameters
 #===================================================================
@@ -75,8 +74,9 @@ model_save_file_path = os.path.join(file_path, "../../checkpoint/")
 output_video_save_file_path = os.path.join(file_path, "../../output/")
 iterations = "iterations/"
 best = "best/"
-checkpoint_iterations = 25
-best_model_iterations = 25
+checkpoint_iterations = 100
+best_model_iterations = 100
+test_model_iterations = 5
 best_loss = float("inf")
 heigth, width = heigth_train, width_train
 channels = 3
@@ -355,7 +355,7 @@ class GenerativeNetwork:
                           reuse=None)
         
         # reuse graph at time of test !
-        self.create_graph(self.input_train, self.output_train, heigth_test, width_test, 
+        self.create_graph(self.input_test, self.output_test, heigth_test, width_test, 
                           self.each_scale_predication_test,
                           self.each_scale_ground_truth_test,
                           reuse=True)
@@ -477,7 +477,7 @@ def log_directory_creation(sess):
 
     # model save directory
     if os.path.exists(model_save_file_path):
-        restore_model_session(sess, iterations + "gan_generative_only_model")
+        restore_model_session(sess, iterations + "gan_model")
     else:
         os.makedirs(model_save_file_path + iterations)
         os.makedirs(model_save_file_path + best)
@@ -497,11 +497,11 @@ def restore_model_session(sess, file_name):
     print ("graph loaded!")
 
 
-def is_correct_batch_shape(X_batch, y_batch, info="train"):
+def is_correct_batch_shape(X_batch, y_batch, info="train",heigth=heigth, width=width):
     # info can be {"train", "val"}
     if (X_batch is None or y_batch is None or
-                X_batch.shape != (batch_size, timesteps, heigth, width, channels) or
-                y_batch.shape != (batch_size, timesteps, heigth, width, channels)):
+                X_batch.shape[1:] != (timesteps, heigth, width, channels) or
+                y_batch.shape[1:] != (timesteps, heigth, width, channels)):
         print ("Warning: skipping this " + info + " batch because of shape")
         return False
     return True
@@ -522,52 +522,6 @@ def remove_oldest_image_add_new_image(X_batch,y_batch):
     removed_older_image = X_batch[:,:,:,channels:]
     new_batch = np.append(removed_older_image, y_batch, axis=3)
     return new_batch
-
-def test():
-    with tf.Session() as sess:
-        model = GenerativeNetwork(heigth_train, width_train, heigth_test, width_test, scale_level_feature_maps, scale_level_kernel_size)
-        init = tf.global_variables_initializer()
-        sess.run(init)
-
-        log_directory_creation(sess)
-
-        # data read iterator
-        data = datasets(batch_size=batch_size, height=heigth, width=width)
-        
-        global_step = 0
-        for X_batch, y_batch, filenames in data.train_next_batch():
-            # print ("X_batch ... ", X_batch.shape, "y_batch", y_batch.shape)
-            if not is_correct_batch_shape(X_batch, y_batch, "test"):
-                # global step not increased !
-                continue
-
-            X_input = X_batch[:,:time_frames_to_consider]
-            X_input = images_to_channels(X_input)
-            Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
-            c = 0
-            for each_time_step in range(time_frames_to_predict):
-                # fetch last layer output
-                y_current_step = sess.run(model.each_scale_predication_train[-1],feed_dict={
-                                model.input_train : X_input,
-                    })
-                Y_output[:,each_time_step,:,:,:] = y_current_step
-                X_input = remove_oldest_image_add_new_image(X_input,y_current_step)
-                print ("c",c)
-                c += 1
-            # input_data = np.zeros_like(X_batch)
-            # input_data[:, 0] = X_batch[:, 0]
-
-            # for i in range(model.timesteps):
-            #     output_predicted = sess.run(model.model_output, feed_dict={model.inputs: input_data})
-            #     if (i < (model.timesteps - 1)):
-            #         input_data[:, i + 1] = output_predicted[:, i]
-            #         print ("global step ", global_step, " time step ", i)
-
-            data.frame_ext.generate_output_video(Y_output, filenames)
-
-            global_step += 1
-            print ("test step ", global_step)
-
 
 def alternate_disc_gen_training(sess, disc_model, gen_model, input_train, output_train):
 
@@ -604,6 +558,58 @@ def alternate_disc_gen_training(sess, disc_model, gen_model, input_train, output
     return (disc_summary_real, disc_summary_fake, gen_summary)
 
 
+def validation(sess, gen_model, data, val_writer, val_step):
+    loss = []
+    for X_batch, y_batch, _ in data.val_next_batch():
+        if not is_correct_batch_shape(X_batch, y_batch, "val"):
+            print ("validation batch is skipping ... ")            
+            continue
+
+        X_input = X_batch[:,:time_frames_to_consider]
+        X_input = images_to_channels(X_input)
+        # ground truth ... for loss calculation ... !
+        output_train = X_batch[:,time_frames_to_consider,:,:,:]
+        Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
+        for each_time_step in range(time_frames_to_predict):
+            # gen predict on real data => predicated
+            y_current_step, combined_loss, train_summary_merged = sess.run([gen_model.each_scale_predication_train[-1], gen_model.combined_loss,gen_model.train_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
+                                                                                                                gen_model.input_train : X_input, 
+                                                                                                                gen_model.output_train : output_train})
+            loss.append(combined_loss)
+            val_writer.add_summary(train_summary_merged, val_step)
+            val_step += 1
+            Y_output[:,each_time_step,:,:,:] = y_current_step
+            X_input = remove_oldest_image_add_new_image(X_input,y_current_step)
+            output_train = X_batch[:,time_frames_to_predict+each_time_step+1,:,:,:]
+    if len(loss)==0:
+        return (val_step, float("inf"))
+    return (val_step, sum(loss)/float(len(loss)))
+
+
+def test(sess, gen_model, data, test_writer, test_step):
+    for X_batch, y_batch, _ in data.get_custom_test_data():
+        if not is_correct_batch_shape(X_batch, y_batch, "test",heigth=custom_test_size[0], width=custom_test_size[1]):
+            print ("test batch is skipping ... ")            
+            continue
+
+        X_input = X_batch[:,:time_frames_to_consider]
+        X_input = images_to_channels(X_input)
+        # ground truth ... for loss calculation ... !
+        output_train = X_batch[:,time_frames_to_consider,:,:,:]
+        # Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
+        for each_time_step in range(time_frames_to_predict):
+            # gen predict on real data => predicated
+            y_current_step, test_summary_merged = sess.run([gen_model.each_scale_predication_test[-1], gen_model.test_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
+                                                                                                                gen_model.input_test : X_input, 
+                                                                                                                gen_model.output_test : output_train})
+            test_writer.add_summary(test_summary_merged, test_step)
+            test_step += 1
+            # Y_output[:,each_time_step,:,:,:] = y_current_step
+            X_input = remove_oldest_image_add_new_image(X_input,y_current_step)
+            output_train = X_batch[:,time_frames_to_predict+each_time_step+1,:,:,:]
+    return test_step
+
+
 def train():
     global best_loss
     with tf.Session() as sess:
@@ -619,18 +625,22 @@ def train():
         log_directory_creation(sess)
 
         # summary !
-        gen_train_writer = tf.summary.FileWriter(log_dir_file_path + "/gen_train", sess.graph)
-        des_train_writer = tf.summary.FileWriter(log_dir_file_path + "/des_train", sess.graph)
-        test_writer = tf.summary.FileWriter(log_dir_file_path + "/test", sess.graph)
+        gen_train_writer = tf.summary.FileWriter(log_dir_file_path + "gen_train", sess.graph)
+        des_train_writer = tf.summary.FileWriter(log_dir_file_path + "des_train", sess.graph)
+        test_writer = tf.summary.FileWriter(log_dir_file_path + "test", sess.graph)
+        val_writer = tf.summary.FileWriter(log_dir_file_path + "val", sess.graph)
         
         global_step = 0
         gen_count_iter = 0
         des_count_iter = 0
+        val_count_iter = 0 
+        test_count_iter = 0
+        val_loss_seen = float("inf")
 
         while True:
             try:
                 # data read iterator
-                data = datasets(batch_size=batch_size, height=heigth, width=width)
+                data = datasets(batch_size=batch_size, height=heigth, width=width, custom_test_size=custom_test_size)
 
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
@@ -652,11 +662,20 @@ def train():
                         des_count_iter += 1                        
                         des_train_writer.add_summary(disc_summary_fake, des_count_iter)
                         des_count_iter += 1
-
+                        
                     if global_step % checkpoint_iterations == 0:
-                        save_model_session(sess, iterations + "gan_generative_only_model")
+                        save_model_session(sess, iterations + "gan_model")
 
-                    print ("Iteration ", global_step, " best_loss ", best_loss)
+                    if global_step % best_model_iterations == 0:
+                        val_count_iter, curr_loss = validation(sess, gen_model, data, val_writer, val_count_iter)
+                        if curr_loss < val_loss_seen:
+                            val_loss_seen = curr_loss
+                            save_model_session(sess, best + "gan_model")
+                            
+                    if global_step % test_model_iterations == 0:
+                        test_count_iter = test(sess, gen_model, data, test_writer, test_count_iter)
+
+                    print ("Iteration ", global_step, " best_loss ", val_loss_seen)
                     global_step += 1
 
             except:
