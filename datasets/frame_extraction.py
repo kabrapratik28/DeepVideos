@@ -6,7 +6,7 @@ import os
 from moviepy.editor import *
 
 class frame_extractor():
-	def __init__(self,height=64, width=64, time_frame=32, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
+	def __init__(self,height=64, width=64, time_frame=16, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
 		self.height = height
 		self.width = width
 		self.time_frame = time_frame
@@ -28,10 +28,12 @@ class frame_extractor():
 			try:
 				video_data = skvideo.io.vread(each_filename)
 				N, H, W, C = video_data.shape
-				max_frame_number = N - ((self.time_frame + 1) * x)
+				max_frame_number = N - ((self.time_frame + 2) * x)
 				frame_index = 0
 				if max_frame_number>=1 and randomize == True:
 					frame_index = random.randint(0,max_frame_number)
+				else:
+					continue
 				data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]
 				frames = []
 				for each_frame in data:
@@ -39,7 +41,7 @@ class frame_extractor():
 					frames.append(resized_image)
 				frames = np.array(frames)
 				X = frames[ 0 : self.time_frame]
-				y = frames[ 1 : self.time_frame+(1*x)]
+				y = frames[ 1 : self.time_frame+1]
 				train_X.append(X)
 				train_y.append(y)
 			except RuntimeError:

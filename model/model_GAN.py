@@ -66,7 +66,7 @@ adam_learning_rate = 0.0004
 batch_size = 8
 number_of_images_to_show = 4
 assert number_of_images_to_show <= batch_size, "images to show should be less !"
-timesteps=32
+timesteps=16
 file_path = os.path.abspath(os.path.dirname(__file__))
 data_folder = os.path.join(file_path, "../../data/")
 log_dir_file_path = os.path.join(file_path, "../../logs/")
@@ -542,7 +542,7 @@ def alternate_disc_gen_training(sess, disc_model, gen_model, input_train, output
     for i in range(len(rescaled_ground_truth_images)):
         new_feed_dict [ disc_model.scale_based_discriminators[i].input ] = rescaled_ground_truth_images[i]
     # real images !
-    new_feed_dict[disc_model.ground_truth_labels] = np.ones([batch_size,1])
+    new_feed_dict[disc_model.ground_truth_labels] = np.ones([len(input_train),1])
 
     # disc train on real data
     _, disc_summary_real = sess.run([disc_model.step, disc_model.train_summary_merged] ,feed_dict=new_feed_dict)
@@ -554,7 +554,7 @@ def alternate_disc_gen_training(sess, disc_model, gen_model, input_train, output
     for i in range(len(each_scale_predication_train)):
         new_feed_dict [ disc_model.scale_based_discriminators[i].input ] = each_scale_predication_train[i]
     # fake images !
-    new_feed_dict[disc_model.ground_truth_labels] = np.zeros([batch_size,1])
+    new_feed_dict[disc_model.ground_truth_labels] = np.zeros([len(input_train),1])
 
     # disc train on predicated by gen
     _, disc_summary_fake, dis_loss = sess.run([disc_model.step, disc_model.train_summary_merged, disc_model.dis_loss] ,feed_dict=new_feed_dict)
@@ -579,7 +579,7 @@ def validation(sess, gen_model, data, val_writer, val_step):
         X_input = images_to_channels(X_input)
         # ground truth ... for loss calculation ... !
         output_train = X_batch[:,time_frames_to_consider,:,:,:]
-        Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
+        Y_output = np.zeros((len(X_input),time_frames_to_predict,heigth,width,channels))
         for each_time_step in range(time_frames_to_predict):
             # gen predict on real data => predicated
             y_current_step, combined_loss, train_summary_merged = sess.run([gen_model.each_scale_predication_train[-1], gen_model.combined_loss,gen_model.val_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
@@ -690,7 +690,7 @@ def train():
 
             except:
                 print ("error occur ... skipping ... !")
-
+                
         train_writer.close()
         test_writer.close()
 
