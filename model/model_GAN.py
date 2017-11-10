@@ -435,19 +435,28 @@ class GenerativeNetwork:
 
     def tf_summary(self):
         train_loss = tf.summary.scalar("gen_train_loss", self.combined_loss)
+        val_loss = tf.summary.scalar("gen_val_loss", self.combined_loss)
         with tf.variable_scope('image_measures'):
             psnr_error_train = psnr_error(self.each_scale_predication_train[-1], self.output_train)
             psnr_error_train_s = tf.summary.scalar("train_psnr",psnr_error_train)
+            psnr_error_val_s = tf.summary.scalar("val_psnr",psnr_error_train)
+
 
             sharpdiff_error_train = sharp_diff_error(self.each_scale_predication_train[-1],self.output_train)
             sharpdiff_error_train_s = tf.summary.scalar("train_shardiff",sharpdiff_error_train)
+            sharpdiff_error_val_s = tf.summary.scalar("val_shardiff",sharpdiff_error_train)
 
             images_to_show_train = []
+            images_to_show_val = []
             len_pred = len(self.each_scale_predication_train)
             for index_scale in range(len_pred-2,len_pred):
                 images_to_show_train.append(tf.summary.image('train_output_scale_' + str(index_scale), self.each_scale_predication_train[index_scale],
                              number_of_images_to_show))
                 images_to_show_train.append(tf.summary.image('train_ground_truth_scale_' + str(index_scale), self.each_scale_ground_truth_train[index_scale],
+                             number_of_images_to_show))
+                images_to_show_val.append(tf.summary.image('val_output_scale_' + str(index_scale), self.each_scale_predication_train[index_scale],
+                             number_of_images_to_show))
+                images_to_show_val.append(tf.summary.image('val_ground_truth_scale_' + str(index_scale), self.each_scale_ground_truth_train[index_scale],
                              number_of_images_to_show))
                 
 
@@ -467,6 +476,7 @@ class GenerativeNetwork:
 
         self.train_summary_merged = tf.summary.merge([train_loss, psnr_error_train_s, sharpdiff_error_train_s]+images_to_show_train)
         self.test_summary_merged = tf.summary.merge([psnr_error_test_s, sharpdiff_error_test_s]+images_to_show_test)
+        self.val_summary_merged = tf.summary.merge([val_loss, psnr_error_val_s, sharpdiff_error_val_s]+images_to_show_val)
         
 # ======================== MODEL ENDS ========================
 
@@ -572,7 +582,7 @@ def validation(sess, gen_model, data, val_writer, val_step):
         Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
         for each_time_step in range(time_frames_to_predict):
             # gen predict on real data => predicated
-            y_current_step, combined_loss, train_summary_merged = sess.run([gen_model.each_scale_predication_train[-1], gen_model.combined_loss,gen_model.train_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
+            y_current_step, combined_loss, train_summary_merged = sess.run([gen_model.each_scale_predication_train[-1], gen_model.combined_loss,gen_model.val_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
                                                                                                                 gen_model.input_train : X_input, 
                                                                                                                 gen_model.output_train : output_train})
             loss.append(combined_loss)
