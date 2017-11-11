@@ -20,6 +20,7 @@ trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 image_channels = 3
 time_frames_to_consider = 4
 time_frames_to_predict = 4
+interval=4 # frames to jump !
 heigth_train= 64
 width_train= 64
 custom_test_size=[160,210]
@@ -651,7 +652,7 @@ def train():
             try:
                 # data read iterator
                 data = datasets(batch_size=batch_size, height=heigth, width=width, 
-                                custom_test_size=custom_test_size,time_frame=timesteps)
+                                custom_test_size=custom_test_size,time_frame=timesteps, interval=interval)
 
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
