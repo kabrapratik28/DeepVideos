@@ -6,7 +6,7 @@ import cPickle
 class datasets(object):
     def __init__(self, batch_size=32, val_split=0.05, test_split=0.05, height=64, width=64,
                  DIR='../../data', output_filename='../../all_videos.txt',
-                 interval=1, custom_test_size=[160,210], dataset='UCF'):
+                 interval=1, custom_test_size=[160,210], dataset='UCF',time_frame=32):
 
         self.file_path = os.path.abspath(os.path.dirname(__file__))
         self.DIR = os.path.join(self.file_path,DIR)
@@ -15,7 +15,8 @@ class datasets(object):
         self.data = None
         self.custom_test_size = custom_test_size
         self.interval = interval
-        self.frame_ext = frame_extractor(height=height,width=width)
+        self.time_frame = time_frame
+        self.frame_ext = frame_extractor(height=height,width=width,time_frame=time_frame)
         self.videos_to_text_file()
         self.load_problematic_videos()
         self.train_test_split(val_split,test_split)
@@ -122,7 +123,7 @@ class datasets(object):
         return self.fixed_next_batch(val_iter)
 
     def get_custom_test_data(self):
-        new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1])
+        new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1],time_frame=self.time_frame)
         # 3 good videos
         vids = ['/v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
         tv = self.data['train'] + self.data['validation']

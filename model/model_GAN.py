@@ -650,7 +650,8 @@ def train():
         while True:
             try:
                 # data read iterator
-                data = datasets(batch_size=batch_size, height=heigth, width=width, custom_test_size=custom_test_size)
+                data = datasets(batch_size=batch_size, height=heigth, width=width, 
+                                custom_test_size=custom_test_size,time_frame=timesteps)
 
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)

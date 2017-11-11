@@ -6,7 +6,7 @@ import os
 from moviepy.editor import *
 
 class frame_extractor():
-	def __init__(self,height=64, width=64, time_frame=16, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
+	def __init__(self,height=64, width=64, time_frame=32, dir_to_save=os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../output/")):
 		self.height = height
 		self.width = width
 		self.time_frame = time_frame
