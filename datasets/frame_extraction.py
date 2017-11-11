@@ -28,12 +28,12 @@ class frame_extractor():
 			try:
 				video_data = skvideo.io.vread(each_filename)
 				N, H, W, C = video_data.shape
-				max_frame_number = N - ((self.time_frame + 2) * x)
+				max_frame_number = N - ((self.time_frame + 1) * x)
+				if max_frame_number<=0:   # very short video ! 
+					continue
 				frame_index = 0
 				if max_frame_number>=1 and randomize == True:
 					frame_index = random.randint(0,max_frame_number)
-				else:
-					continue
 				data = video_data[frame_index : frame_index+(self.time_frame + 1) * x : x]
 				frames = []
 				for each_frame in data:
