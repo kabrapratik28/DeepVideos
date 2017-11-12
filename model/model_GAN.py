@@ -488,7 +488,9 @@ def log_directory_creation(sess):
 
     # model save directory
     if os.path.exists(model_save_file_path):
-        restore_model_session(sess, iterations + "gan_model")
+        x_folder = iterations
+        print ("loading model from ",x_folder)
+        restore_model_session(sess, x_folder + "gan_model")
     else:
         os.makedirs(model_save_file_path + iterations)
         os.makedirs(model_save_file_path + best)
@@ -597,8 +599,8 @@ def validation(sess, gen_model, data, val_writer, val_step):
     return (val_step, sum(loss)/float(len(loss)))
 
 
-def test(sess, gen_model, data, test_writer, test_step):
-    for X_batch, y_batch, _ in data.get_custom_test_data():
+def test(sess, gen_model, data, test_writer, test_step, is_store_output=False):
+    for X_batch, y_batch, file_names in data.get_custom_test_data():
         if not is_correct_batch_shape(X_batch, y_batch, "test",heigth=custom_test_size[0], width=custom_test_size[1]):
             print ("test batch is skipping ... ")            
             continue
@@ -607,7 +609,9 @@ def test(sess, gen_model, data, test_writer, test_step):
         X_input = images_to_channels(X_input)
         # ground truth ... for loss calculation ... !
         output_train = X_batch[:,time_frames_to_consider,:,:,:]
-        # Y_output = np.zeros((batch_size,time_frames_to_predict,heigth,width,channels))
+        # store output ... 
+        Y_output = np.zeros((len(X_batch),time_frames_to_predict,custom_test_size[0],custom_test_size[1],channels))
+
         for each_time_step in range(time_frames_to_predict):
             # gen predict on real data => predicated
             y_current_step, test_summary_merged = sess.run([gen_model.each_scale_predication_test[-1], gen_model.test_summary_merged], feed_dict={gen_model.loss_from_disc : 0.0,
@@ -615,11 +619,53 @@ def test(sess, gen_model, data, test_writer, test_step):
                                                                                                                 gen_model.output_test : output_train})
             test_writer.add_summary(test_summary_merged, test_step)
             test_step += 1
-            # Y_output[:,each_time_step,:,:,:] = y_current_step
+            Y_output[:,each_time_step,:,:,:] = y_current_step
             X_input = remove_oldest_image_add_new_image(X_input,y_current_step)
             output_train = X_batch[:,time_frames_to_predict+each_time_step+1,:,:,:]
+
+        if is_store_output:
+            # save with filnames
+            expected_frames = X_batch[:,time_frames_to_consider:time_frames_to_consider+time_frames_to_predict,:,:,:]
+            # image post processing is happening inside of store ... 
+            # store 
+            store_file_names_gen = data.frame_ext.generate_output_video(Y_output, file_names, ext_add_to_file_name="_generated_large")
+            store_file_names_exp = data.frame_ext.generate_output_video(expected_frames, file_names, ext_add_to_file_name="_expected_large")
+            speed = 1
+            data.frame_ext.generate_gif_videos(store_file_names_gen,speed=speed)
+            data.frame_ext.generate_gif_videos(store_file_names_exp,speed=speed)
+
     return test_step
 
+def test_wrapper():
+    with tf.Session() as sess:
+        disc_model = Discriminator(heigth, width, disc_scale_level_feature_maps, disc_scale_level_kernel_size, disc_fc_layer_units)
+        gen_model = GenerativeNetwork(heigth_train, width_train, heigth_test, width_test, scale_level_feature_maps, scale_level_kernel_size)
+
+        # Initialize the variables (i.e. assign their default value)
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+        # clear logs !
+        log_directory_creation(sess)
+
+        # summary !
+        gen_train_writer = tf.summary.FileWriter(log_dir_file_path + "gen_train", sess.graph)
+        des_train_writer = tf.summary.FileWriter(log_dir_file_path + "des_train", sess.graph)
+        test_writer = tf.summary.FileWriter(log_dir_file_path + "test", sess.graph)
+        val_writer = tf.summary.FileWriter(log_dir_file_path + "val", sess.graph)
+        
+        global_step = 0
+        gen_count_iter = 0
+        des_count_iter = 0
+        val_count_iter = 0 
+        test_count_iter = 0
+        val_loss_seen = float("inf")
+
+        # data read iterator
+        data = datasets(batch_size=batch_size, height=heigth, width=width, 
+                        custom_test_size=custom_test_size,time_frame=timesteps, interval=interval)
+
+        test_count_iter = test(sess, gen_model, data, test_writer, test_count_iter, is_store_output=True)
 
 def train():
     global best_loss
