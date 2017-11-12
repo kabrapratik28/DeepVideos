@@ -141,7 +141,7 @@ class datasets(object):
     def get_custom_test_data(self):
         new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1],time_frame=self.time_frame)
         # 3 good videos
-        vids = ['/v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
+        vids = ['v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
         tv = self.data['train'] + self.data['validation']
         new_test = [x for vid in vids for x in tv if vid in x]
         while True:

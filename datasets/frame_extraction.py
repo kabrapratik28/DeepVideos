@@ -50,17 +50,27 @@ class frame_extractor():
 		train_y = self.image_processing(np.array(train_y))
 		return train_X, train_y, list_video_filenames
 
-	def generate_output_video(self, frames, filenames):
+	def generate_output_video(self, frames, filenames, ext_add_to_file_name=""):
 
 		frames = self.image_postprocessing(frames)
 		no_videos = frames.shape[0]
 		no_frames = frames.shape[1]
+		store_file_names = []
 		for i in range(no_videos):
 			cur_video = np.array([frames[i][j] for j in range(no_frames)])
 			filename = os.path.splitext(os.path.basename(filenames[i]))[0]
-			skvideo.io.vwrite(os.path.join(self.dir_to_save, filename + '.mp4'), cur_video)
-			#self.count += 1
+			skvideo.io.vwrite(os.path.join(self.dir_to_save, filename + ext_add_to_file_name + '.mp4'), cur_video)
+			store_file_names.append(os.path.join(self.dir_to_save, filename + ext_add_to_file_name))
 
-	def generate_gif_videos(self, input_file_path, output_file_path, speed):
+		# WARN : return file names without .mp4
+		return store_file_names
+
+	def generate_gif_videos(self, input_file_paths,speed=1):
+		output_file_paths = map(lambda x: x+".gif",input_file_paths)
+		input_file_paths_m = map(lambda x: x+".mp4",input_file_paths)
+		for each_inp , each_out in zip(input_file_paths_m, output_file_paths):
+			self.generate_gif_video(each_inp, each_out, speed)
+
+	def generate_gif_video(self, input_file_path, output_file_path, speed=1):
 		video_freeze = (VideoFileClip(input_file_path).speedx(speed))
 		video_freeze.write_gif(output_file_path)
