@@ -289,7 +289,7 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     if ((X_batch is None) or (X_batch.shape != (model.batch_size, model.timesteps+1, heigth, width, channels))):
         print ("Warning: skipping this " + info + " batch because of shape")
         print ("expected ",(model.batch_size, model.timesteps, heigth, width, channels))
-        if X_batch!=None:
+        if X_batch is not None:
             print ("got  ", X_batch.shape)
         return False
     return True
