@@ -187,9 +187,9 @@ class seq2seq_model():
         for i in range(1,self.dec_timesteps):
             select_sampling = tf.greater_equal(self.prob_select_teacher, tf.gather(self.teacher_force_sampling,i))
             # Conv on actual t_timestep input
-            ith_frame = tf.slice(decoder_inp,[0,i,0,0,0],[self.batch_size,1,self.H,self.W,self.C])
+            ith_frame = tf.slice(decoder_inp,[0,i,0,0,0],[self.batch_size,1,H,W,C])
             ith_frame = tf.squeeze(ith_frame,[1])
-            conv_output = self.conv_layer(ith_frame)
+            conv_output = ith_frame    # decoder input is already passed from conv layer above !
             branch_1 = decoder_cell(conv_output, state)
             # Conv on predicated t-1_timestep input
             conv_output = self.conv_layer(deconv_output)
