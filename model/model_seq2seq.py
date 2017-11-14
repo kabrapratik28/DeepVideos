@@ -82,7 +82,7 @@ def total_loss(generated_frames, expected_frames, lambda_gdl=1.0, lambda_l2=1.0)
 class seq2seq_model():
     def __init__(self):
         """Parameter initialization"""
-        self.batch_size = 16
+        self.batch_size = 4
         self.number_of_images_to_show = 4
         assert self.number_of_images_to_show <= self.batch_size
         self.shape = [64, 64]  # Image shape
@@ -314,7 +314,7 @@ def validation(sess, model, data, val_writer, val_step):
         gdl_l2_loss, val_summary_merged = sess.run([model.gdl_l2_loss,model.val_summary_merged], 
                                                 feed_dict={ model.inputs : input_data,
                                                     model.outputs_exp : outputs_exp,
-                                                    model.teacher_force_sampling : np.random.uniform(size=dec_timesteps),
+                                                    model.teacher_force_sampling : np.random.uniform(size=model.dec_timesteps),
                                                     model.prob_select_teacher : -1
                                                 })
         loss.append(gdl_l2_loss)
