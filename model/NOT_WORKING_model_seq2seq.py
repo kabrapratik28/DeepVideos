@@ -82,22 +82,26 @@ def total_loss(generated_frames, expected_frames, lambda_gdl=1.0, lambda_l2=1.0)
 class seq2seq_model():
     def __init__(self):
         """Parameter initialization"""
-        self.batch_size = 16
+        self.batch_size = 4
         self.number_of_images_to_show = 4
         assert self.number_of_images_to_show <= self.batch_size
         self.shape = [64, 64]  # Image shape
         self.H, self.W = self.shape
+        self.kernels = [[3, 3],[5, 5]]
         self.channels = self.C = 3
-        self.enc_timesteps = 4 - 1
-        self.dec_timesteps = 4
+        self.filters = [128, 128]  # 2 stacked conv lstm filters
+        self.enc_timesteps = 8 - 1
+        self.dec_timesteps = 8
         self.timesteps = self.enc_timesteps + self.dec_timesteps
-        self.images_summary_timesteps = [0, 1, 2, 3]
+        self.images_summary_timesteps = [0, 2, 5, 7]
 
         # Create a placeholder for videos.
         self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.timesteps] + self.shape + [self.channels],
-                            name="seq2seq_inputs")  # (batch_size, timestep, H, W, C)
+                                     name="seq2seq_inputs")  # (batch_size, timestep, H, W, C)
         self.outputs_exp = tf.placeholder(tf.float32, [self.batch_size, self.dec_timesteps] + self.shape + [self.channels],
-                            name="seq2seq_outputs_exp")  # (batch_size, timestep, H, W, C)
+                                          name="seq2seq_outputs_exp")  # (batch_size, timestep, H, W, C)
+        self.teacher_force_sampling = tf.placeholder(tf.float32, [self.dec_timesteps], name="teacher_force_sampling")
+        self.prob_select_teacher = tf.placeholder(tf.float32, shape=(), name="prob_select_teacher")
 
         # model output
         self.model_output = None
@@ -115,83 +119,88 @@ class seq2seq_model():
     def conv_layer(self,conv_input):
         # conv before lstm
         with tf.variable_scope('conv_before_lstm',reuse=self.reuse_conv):
-            net = slim.conv2d(conv_input, 32, [3, 3], scope='conv_1', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 64, [3, 3], scope='conv_2', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv_3', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv_4', weights_initializer=trunc_normal(0.01),
-                              weights_regularizer=regularizers.l2_regularizer(l2_val))
+            net = slim.conv2d(conv_input, 128, [7,7], scope='conv_1',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d(net, 256, [5,5], scope='conv_2',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d(net, 512, [5,5], scope='conv_3',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d(net, 256, [5,5], scope='conv_4',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d(net, 128, [7,7], scope='conv_5',weights_initializer=trunc_normal(0.01))
             self.reuse_conv = True
             return net
 
     def deconv_layer(self,deconv_input):
         with tf.variable_scope('deconv_after_lstm',reuse=self.reuse_deconv):
-            net = slim.conv2d_transpose(deconv_input, 256, [3, 3], scope='deconv_4',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 128, [3, 3], stride=2, scope='deconv_3', weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 64, [3, 3], stride=2, scope='deconv_2',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 32, [3, 3], scope='deconv_1',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
-            net = slim.conv2d_transpose(net, 3, [3, 3], activation_fn=tf.tanh, scope='deconv_0',
-                                        weights_initializer=trunc_normal(0.01),
-                                        weights_regularizer=regularizers.l2_regularizer(l2_val))
+            net = slim.conv2d_transpose(deconv_input, 128, [7, 7], scope='deconv_5',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d_transpose(net, 256, [5, 5], scope='deconv_4', weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d_transpose(net, 512, [5, 5], scope='deconv_3',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d_transpose(net, 256, [5, 5], scope='deconv_2',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d_transpose(net, 128, [7, 7], scope='deconv_1',weights_initializer=trunc_normal(0.01))
+            net = slim.conv2d_transpose(net, 3, [7, 7], activation_fn=tf.tanh, scope='deconv_0',weights_initializer=trunc_normal(0.01))
             self.reuse_deconv = True
             return net
 
-    def conv_lstm_encoder(self,H,W,filter_size,kernel,encoder_input):
+    def enc_lstm_layer(self,H,W):
         with tf.variable_scope('enc_lstm_model'):
-            encoder_cell = ConvLSTMCell([H,W], filter_size, kernel,reuse=tf.get_variable_scope().reuse)
-            zero_state = encoder_cell.zero_state(self.batch_size,dtype=tf.float32)
-            _, encoded_state = tf.nn.dynamic_rnn(cell=encoder_cell, inputs=encoder_input, initial_state=zero_state)
-            return encoded_state
-    
-    def conv_lstm_decoder(self,H,W,filter_size,kernel,decoder_input,enc_final_state):
+            cells = []
+            for i, (each_filter, each_kernel) in enumerate(zip(self.filters,self.kernels)):
+                cell = ConvLSTMCell([H, W], each_filter, each_kernel,reuse=tf.get_variable_scope().reuse)
+                cells.append(cell)
+
+            cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+            return cell
+
+    def dec_lstm_layer(self,H,W):
         with tf.variable_scope('dec_lstm_model'):
-            decoder_cell = ConvLSTMCell([H,W], filter_size, kernel,reuse=tf.get_variable_scope().reuse)
-            decoder_outputs, _ = tf.nn.dynamic_rnn(cell=decoder_cell, inputs=decoder_input, initial_state=enc_final_state)
-            return decoder_outputs
+            cells = []
+            for i, (each_filter, each_kernel) in enumerate(zip(self.filters,self.kernels)):
+                cell = ConvLSTMCell([H, W], each_filter, each_kernel,reuse=tf.get_variable_scope().reuse)
+                cells.append(cell)
+
+            cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+            return cell
 
     def create_model(self):
-        B, T, H, W, C = self.inputs.get_shape().as_list()
-        reshaped_inputs_for_conv = tf.reshape(self.inputs, [-1,H,W,C])
-        conved_output = self.conv_layer(reshaped_inputs_for_conv)
-        _, H, W, C = conved_output.get_shape().as_list()
-        lstm_input_reshape = tf.reshape(conved_output, [B,T,H,W,C])
+        H, W, C = self.shape[0], self.shape[1], self.channels
+        input_conv_layer = tf.reshape(self.inputs, [-1,H,W,C])
+        output_conv_layer = self.conv_layer(input_conv_layer)
+        _, H, W, C = output_conv_layer.get_shape().as_list()
+        lstm_shaped_input = tf.reshape(output_conv_layer, [-1,self.timesteps,H,W,C])
 
-        B, T, H, W, C = lstm_input_reshape.get_shape().as_list()
-        # split conv input into two parts 
-        encoder_input_from_conv = tf.slice(lstm_input_reshape,[0,0,0,0,0],[B,self.enc_timesteps,H,W,C])
-        decoder_input_from_conv = tf.slice(lstm_input_reshape,[0,self.enc_timesteps,0,0,0],[B,self.dec_timesteps,H,W,C])
+        # slice first part to feed to encoder and second to decoder
+        encoder_inp = tf.slice(lstm_shaped_input,[0,0,0,0,0],[self.batch_size,self.enc_timesteps,H,W,C])
+        decoder_inp = tf.slice(lstm_shaped_input,[0,self.enc_timesteps,0,0,0],[self.batch_size,self.dec_timesteps,H,W,C])
 
-        filter_size = C
-        kernel_size = [3,3]
-        encoded_state = self.conv_lstm_encoder(H,W,filter_size,kernel_size,encoder_input_from_conv)
+        # dynamic rnn as encoder
+        encoder_cell = self.enc_lstm_layer(H,W)
+        zero_state = encoder_cell.zero_state(self.batch_size, dtype=tf.float32)
+        encoder_output, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,inputs=encoder_inp,initial_state=zero_state)
 
-        decoder_output = self.conv_lstm_decoder(H,W,filter_size,kernel_size,decoder_input_from_conv,encoded_state)
+        # decoder cell 
+        decoder_cell = self.dec_lstm_layer(H,W)
+        state = encoder_final_state
+        input_for_first_time = tf.slice(decoder_inp, [0,0,0,0,0], [self.batch_size,1,H,W,C])
+        input_for_first_time = tf.squeeze(input_for_first_time,[1])
+        input_deconv, state = decoder_cell(input_for_first_time,state)
+        predications = []
+        deconv_output = self.deconv_layer(input_deconv)
+        predications.append(deconv_output)
 
-        # pass through deconv layer
-        B, T, H, W, C = decoder_output.get_shape().as_list()
-        deconv_layer_input = tf.reshape(decoder_output,[-1,H, W, C])
-        predication = self.deconv_layer(deconv_layer_input)
+        for i in range(1,self.dec_timesteps):
+            select_sampling = tf.greater_equal(self.prob_select_teacher, tf.gather(self.teacher_force_sampling,i))
+            # Conv on actual t_timestep input
+            ith_frame = tf.slice(decoder_inp,[0,i,0,0,0],[self.batch_size,1,H,W,C])
+            ith_frame = tf.squeeze(ith_frame,[1])
+            conv_output = ith_frame    # decoder input is already passed from conv layer above !
+            branch_1 = decoder_cell(conv_output, state)
+            # Conv on predicated t-1_timestep input
+            conv_output = self.conv_layer(deconv_output)
+            branch_2 = decoder_cell(conv_output, state)
 
-        _, H, W, C = predication.get_shape().as_list()
-        model_output = tf.reshape(predication,[B,T,H,W,C])
+            deconv_input, state = tf.cond(select_sampling, lambda: branch_1, lambda: branch_2)
+            deconv_output = self.deconv_layer(deconv_input)
+            predications.append(deconv_output)
 
-        self.model_output = model_output
-
-    def loss(self):
-        self.gdl_l2_loss = total_loss(self.model_output, self.outputs_exp)
-
-    def optimize(self):
-        train_step = tf.train.AdamOptimizer()
-        self.optimizer = train_step.minimize(self.gdl_l2_loss)
+        # batch major from time major !
+        self.model_output = tf.transpose(tf.stack(predications),perm=[1,0,2,3,4])
 
     def images_summary(self):
         train_summary, val_summary, test_summary = [], [], []
@@ -218,6 +227,13 @@ class seq2seq_model():
         self.val_summary_merged = tf.summary.merge(summary[1])
         self.test_summary_merged = tf.summary.merge(summary[2])
 
+    def loss(self):
+        self.gdl_l2_loss = total_loss(self.model_output, self.outputs_exp)
+
+    def optimize(self):
+        train_step = tf.train.AdamOptimizer()
+        self.optimizer = train_step.minimize(self.gdl_l2_loss)
+
     def build_model(self):
         self.create_model()
         self.loss()
@@ -232,8 +248,8 @@ model_save_file_path = os.path.join(file_path, "../../checkpoint/")
 output_video_save_file_path = os.path.join(file_path, "../../output/")
 iterations = "iterations/"
 best = "best/"
-checkpoint_iterations = 25
-best_model_iterations = 25
+checkpoint_iterations = 100
+best_model_iterations = 100
 best_gdl_l2_loss = float("inf")
 heigth, width = 64, 64
 channels = 3
@@ -272,11 +288,20 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
     # info can be {"train", "val"}
     if ((X_batch is None) or (X_batch.shape != (model.batch_size, model.timesteps+1, heigth, width, channels))):
         print ("Warning: skipping this " + info + " batch because of shape")
-        print ("expected ",(model.batch_size, model.timesteps+1, heigth, width, channels))
+        print ("expected ",(model.batch_size, model.timesteps, heigth, width, channels))
         if X_batch is not None:
             print ("got  ", X_batch.shape)
         return False
-    return True 
+    return True
+
+
+def test():
+    with tf.Session() as sess:
+        model = seq2seq_model()
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+        log_directory_creation(sess) 
 
 def validation(sess, model, data, val_writer, val_step):
     loss = []
@@ -288,7 +313,9 @@ def validation(sess, model, data, val_writer, val_step):
         outputs_exp = X_batch[:, -model.dec_timesteps:]
         gdl_l2_loss, val_summary_merged = sess.run([model.gdl_l2_loss,model.val_summary_merged], 
                                                 feed_dict={ model.inputs : input_data,
-                                                    model.outputs_exp : outputs_exp
+                                                    model.outputs_exp : outputs_exp,
+                                                    model.teacher_force_sampling : np.random.uniform(size=model.dec_timesteps),
+                                                    model.prob_select_teacher : -1
                                                 })
         loss.append(gdl_l2_loss)
         val_writer.add_summary(val_summary_merged, val_step)
@@ -344,7 +371,9 @@ def train():
                     outputs_exp = X_batch[:, -dec_timesteps:]
                     _, train_summary_merged = sess.run([model.optimizer,model.train_summary_merged], 
                                                 feed_dict={ model.inputs : input_data,
-                                                    model.outputs_exp : outputs_exp
+                                                    model.outputs_exp : outputs_exp,
+                                                    model.teacher_force_sampling : np.random.uniform(size=dec_timesteps),
+                                                    model.prob_select_teacher : 0.8
                                                 })
 
                     train_writer.add_summary(train_summary_merged, train_count_iter)
