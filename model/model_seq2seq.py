@@ -280,16 +280,34 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
 
 def validation(sess, model, data, val_writer, val_step):
     loss = []
+    batch_size, heigth, width = model.batch_size, model.H , model.W
+    enc_timesteps = model.enc_timesteps
+    dec_timesteps = model.dec_timesteps
+    timesteps = model.timesteps
+
     for X_batch, y_batch, _ in data.val_next_batch():
         if not is_correct_batch_shape(X_batch, y_batch, model, "val"):
             print ("validation batch is skipping ... ")            
             continue
-        input_data = X_batch[:, : model.timesteps]
+        
+        B, T, H, W, C = model.inputs.get_shape().as_list()
         outputs_exp = X_batch[:, -model.dec_timesteps:]
-        gdl_l2_loss, val_summary_merged = sess.run([model.gdl_l2_loss,model.val_summary_merged], 
-                                                feed_dict={ model.inputs : input_data,
-                                                    model.outputs_exp : outputs_exp
-                                                })
+        input_data = np.zeros((B,T,H,W,C))
+        # +1 because decoder initial frame we provide ... !
+        input_data[:,:enc_timesteps+1] = X_batch[:,:enc_timesteps+1]
+        for i in range(dec_timesteps):
+                # fetch loss also ...
+                gdl_l2_loss, val_summary_merged, model_output = sess.run([model.gdl_l2_loss,model.val_summary_merged, 
+                                                                          model.model_output], 
+                                                                    feed_dict={ model.inputs : input_data,
+                                                                        model.outputs_exp : outputs_exp
+                                                                    })
+                if i!=(dec_timesteps-1):
+                    input_data[:,enc_timesteps+1+i] = model_output[:,i]
+
+
+        # last step gdl loss only appended ... 
+        # that's what we are expecting , other time its predicating intermediate frames and all others are zero ...
         loss.append(gdl_l2_loss)
         val_writer.add_summary(val_summary_merged, val_step)
         val_step += 1
