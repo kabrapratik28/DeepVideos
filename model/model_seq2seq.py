@@ -19,6 +19,21 @@ from tensorflow.contrib.layers.python.layers import regularizers
 
 trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 l2_val = 0.00005
+file_path = os.path.abspath(os.path.dirname(__file__))
+data_folder = os.path.join(file_path, "../../data/")
+log_dir_file_path = os.path.join(file_path, "../../logs/")
+model_save_file_path = os.path.join(file_path, "../../checkpoint/")
+output_video_save_file_path = os.path.join(file_path, "../../output/")
+iterations = "iterations/"
+best = "best/"
+checkpoint_iterations = 25
+best_model_iterations = 25
+test_model_iterations = 25
+best_gdl_l2_loss = float("inf")
+heigth, width = 64, 64
+channels = 3
+interval = 4 # frames to jump !
+custom_test_size = [64, 64] #[160,210]
 
 # ================== New Defined Loss ===========================
 
@@ -92,15 +107,22 @@ class seq2seq_model():
         self.dec_timesteps = 4
         self.timesteps = self.enc_timesteps + self.dec_timesteps
         self.images_summary_timesteps = [0, 1, 2, 3]
+        self.test_shape = custom_test_size
 
         # Create a placeholder for videos.
         self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.timesteps] + self.shape + [self.channels],
                             name="seq2seq_inputs")  # (batch_size, timestep, H, W, C)
         self.outputs_exp = tf.placeholder(tf.float32, [self.batch_size, self.dec_timesteps] + self.shape + [self.channels],
                             name="seq2seq_outputs_exp")  # (batch_size, timestep, H, W, C)
+        self.inputs_test = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.timesteps] + self.test_shape + [self.channels],
+                            name="seq2seq_test_inputs")
+        self.outputs_exp_test = tf.placeholder(tf.float32, [self.batch_size, self.dec_timesteps] + self.test_shape + [self.channels],
+                            name="seq2seq_test_outputs_exp")
+
 
         # model output
         self.model_output = None
+        self.model_output_test = None
 
         # loss
         self.gdl_l2_loss = None
@@ -110,7 +132,14 @@ class seq2seq_model():
 
         self.reuse_conv = None
         self.reuse_deconv = None
-        self.build_model()
+        self.reuse_conv_lstm_encoder = None
+        self.reuse_conv_lstm_decoder = None
+        
+        self.model_output = self.create_model(self.inputs)
+        self.model_output_test = self.create_model(self.inputs_test)
+        self.loss()
+        self.optimize()
+        self.images_summary()
 
     def conv_layer(self,conv_input):
         # conv before lstm
@@ -146,21 +175,23 @@ class seq2seq_model():
             return net
 
     def conv_lstm_encoder(self,H,W,filter_size,kernel,encoder_input):
-        with tf.variable_scope('enc_lstm_model'):
+        with tf.variable_scope('enc_lstm_model',reuse=self.reuse_conv_lstm_encoder):
             encoder_cell = ConvLSTMCell([H,W], filter_size, kernel,reuse=tf.get_variable_scope().reuse)
             zero_state = encoder_cell.zero_state(self.batch_size,dtype=tf.float32)
             _, encoded_state = tf.nn.dynamic_rnn(cell=encoder_cell, inputs=encoder_input, initial_state=zero_state)
+            self.reuse_conv_lstm_encoder = True
             return encoded_state
     
     def conv_lstm_decoder(self,H,W,filter_size,kernel,decoder_input,enc_final_state):
-        with tf.variable_scope('dec_lstm_model'):
+        with tf.variable_scope('dec_lstm_model', reuse=self.reuse_conv_lstm_decoder):
             decoder_cell = ConvLSTMCell([H,W], filter_size, kernel,reuse=tf.get_variable_scope().reuse)
             decoder_outputs, _ = tf.nn.dynamic_rnn(cell=decoder_cell, inputs=decoder_input, initial_state=enc_final_state)
+            self.reuse_conv_lstm_decoder = True
             return decoder_outputs
 
-    def create_model(self):
-        B, T, H, W, C = self.inputs.get_shape().as_list()
-        reshaped_inputs_for_conv = tf.reshape(self.inputs, [-1,H,W,C])
+    def create_model(self, inputs):
+        B, T, H, W, C = inputs.get_shape().as_list()
+        reshaped_inputs_for_conv = tf.reshape(inputs, [-1,H,W,C])
         conved_output = self.conv_layer(reshaped_inputs_for_conv)
         _, H, W, C = conved_output.get_shape().as_list()
         lstm_input_reshape = tf.reshape(conved_output, [B,T,H,W,C])
@@ -183,8 +214,7 @@ class seq2seq_model():
 
         _, H, W, C = predication.get_shape().as_list()
         model_output = tf.reshape(predication,[B,T,H,W,C])
-
-        self.model_output = model_output
+        return model_output
 
     def loss(self):
         self.gdl_l2_loss = total_loss(self.model_output, self.outputs_exp)
@@ -195,8 +225,8 @@ class seq2seq_model():
 
     def images_summary(self):
         train_summary, val_summary, test_summary = [], [], []
-        summary = [train_summary, val_summary, test_summary]
-        summary_name = ["train","val","test"]
+        summary = [train_summary, val_summary]
+        summary_name = ["train","val"]
 
         time_sliced_images = tf.slice(self.inputs, [0, 0, 0, 0, 0],
                                       [self.number_of_images_to_show, 1, self.shape[0], self.shape[1], self.channels])
@@ -214,31 +244,24 @@ class seq2seq_model():
                 summary_list.append(tf.summary.image(name+'_output_images_step_' + str(each_timestep), time_sliced_images,
                                  self.number_of_images_to_show))
 
+        # testing phase ...
+        time_sliced_images = tf.slice(self.inputs_test, [0, 0, 0, 0, 0],[self.number_of_images_to_show, 1, self.test_shape[0], self.test_shape[1], self.channels])
+        time_sliced_images = tf.squeeze(time_sliced_images,[1])
+        test_summary.append(tf.summary.image('test_input_images', time_sliced_images, self.number_of_images_to_show))
+
+        for each_timestep in self.images_summary_timesteps:
+            time_sliced_images = tf.slice(self.model_output_test, [0, each_timestep, 0, 0, 0],
+                                          [self.number_of_images_to_show, 1, self.test_shape[0], self.test_shape[1], self.channels])
+            time_sliced_images = tf.squeeze(time_sliced_images,[1])
+            test_summary.append(tf.summary.image('test_output_images_step_' + str(each_timestep), time_sliced_images,
+                                 self.number_of_images_to_show))
+
+
         self.train_summary_merged = tf.summary.merge(summary[0])
         self.val_summary_merged = tf.summary.merge(summary[1])
-        self.test_summary_merged = tf.summary.merge(summary[2])
+        self.test_summary_merged = tf.summary.merge(test_summary)
 
-    def build_model(self):
-        self.create_model()
-        self.loss()
-        self.optimize()
-        self.images_summary()
-
-
-file_path = os.path.abspath(os.path.dirname(__file__))
-data_folder = os.path.join(file_path, "../../data/")
-log_dir_file_path = os.path.join(file_path, "../../logs/")
-model_save_file_path = os.path.join(file_path, "../../checkpoint/")
-output_video_save_file_path = os.path.join(file_path, "../../output/")
-iterations = "iterations/"
-best = "best/"
-checkpoint_iterations = 25
-best_model_iterations = 25
-best_gdl_l2_loss = float("inf")
-heigth, width = 64, 64
-channels = 3
-interval = 4 # frames to jump !
-custom_test_size = [160,210]
+# ===============================================================
 
 def log_directory_creation(sess):
     if tf.gfile.Exists(log_dir_file_path):
@@ -268,7 +291,7 @@ def restore_model_session(sess, file_name):
     print ("graph loaded!")
 
 
-def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
+def is_correct_batch_shape(X_batch, y_batch, model, heigth, width, info="train"):
     # info can be {"train", "val"}
     if ((X_batch is None) or (X_batch.shape != (model.batch_size, model.timesteps+1, heigth, width, channels))):
         print ("Warning: skipping this " + info + " batch because of shape")
@@ -278,6 +301,45 @@ def is_correct_batch_shape(X_batch, y_batch, model, info="train"):
         return False
     return True 
 
+def test(sess, model, data, test_writer, test_step, is_store_output=False):
+    
+    batch_size, heigth, width = model.batch_size, custom_test_size[0], custom_test_size[1]
+    enc_timesteps = model.enc_timesteps
+    dec_timesteps = model.dec_timesteps
+    timesteps = model.timesteps
+
+    for X_batch, y_batch, file_names in data.get_custom_test_data():
+        if not is_correct_batch_shape(X_batch, y_batch, model, custom_test_size[0], custom_test_size[1], "val"):
+            print ("test batch is skipping ... ")            
+            continue
+
+        B, T, H, W, C = model.inputs_test.get_shape().as_list()
+        outputs_exp = X_batch[:, -model.dec_timesteps:]
+        input_data = np.zeros((B,T,H,W,C))
+        # +1 because decoder initial frame we provide ... !
+        input_data[:,:enc_timesteps+1] = X_batch[:,:enc_timesteps+1]
+        predicated_output = np.zeros((B,dec_timesteps,H,W,C))
+        for i in range(dec_timesteps):
+            test_summary_merged, model_output_test = sess.run([model.test_summary_merged, 
+                                                                          model.model_output_test], 
+                                                            feed_dict={ model.inputs_test : input_data})
+            test_writer.add_summary(test_summary_merged, test_step)
+            test_step += 1
+            predicated_output[:,i] = model_output_test[:,i]
+            if i!=(dec_timesteps-1):
+                    input_data[:,enc_timesteps+1+i] = model_output_test[:,i]
+
+        if is_store_output:
+            # image post processing is happening inside of store ... 
+            # store 
+            store_file_names_gen = data.frame_ext.generate_output_video(predicated_output, file_names, ext_add_to_file_name="_generated_large")
+            store_file_names_exp = data.frame_ext.generate_output_video(outputs_exp, file_names, ext_add_to_file_name="_expected_large")
+            speed = 1
+            data.frame_ext.generate_gif_videos(store_file_names_gen,speed=speed)
+            data.frame_ext.generate_gif_videos(store_file_names_exp,speed=speed)
+
+    return test_step
+
 def validation(sess, model, data, val_writer, val_step):
     loss = []
     batch_size, heigth, width = model.batch_size, model.H , model.W
@@ -286,7 +348,7 @@ def validation(sess, model, data, val_writer, val_step):
     timesteps = model.timesteps
 
     for X_batch, y_batch, _ in data.val_next_batch():
-        if not is_correct_batch_shape(X_batch, y_batch, model, "val"):
+        if not is_correct_batch_shape(X_batch, y_batch, model, model.H, model.W, "val"):
             print ("validation batch is skipping ... ")            
             continue
         
@@ -316,6 +378,28 @@ def validation(sess, model, data, val_writer, val_step):
         return (val_step, float("inf"))
     return (val_step, sum(loss)/float(len(loss)))
 
+def test_wrapper():
+	with tf.Session() as sess:
+		model = seq2seq_model()
+        # Initialize the variables (i.e. assign their default value)
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+        # clear logs !
+        log_directory_creation(sess)
+
+        batch_size, heigth, width = model.batch_size, model.H , model.W
+        enc_timesteps = model.enc_timesteps
+        dec_timesteps = model.dec_timesteps
+        timesteps = model.timesteps
+
+        data = datasets(batch_size=batch_size, height=heigth, width=width, 
+                                custom_test_size=custom_test_size,time_frame=timesteps+1, interval=interval)
+
+        test_count_iter = 0
+        test_writer = tf.summary.FileWriter(log_dir_file_path + "test", sess.graph)
+        test_count_iter = test(sess, model, data, test_writer, test_count_iter, is_store_output=True)
+        test_writer.close()
 
 def train():
     global best_gdl_l2_loss
@@ -354,7 +438,7 @@ def train():
 
                 for X_batch, y_batch, _ in data.train_next_batch():
                     # print ("X_batch", X_batch.shape, "y_batch", y_batch.shape)
-                    if not is_correct_batch_shape(X_batch, y_batch, model, "train"):
+                    if not is_correct_batch_shape(X_batch, y_batch, model, model.H, model.W, "train"):
                         # global step not increased !
                         continue
 
@@ -375,6 +459,8 @@ def train():
                         if curr_loss < val_loss_seen:
                             val_loss_seen = curr_loss
                             save_model_session(sess, best + "seq2seq_model")
+                    if global_step % test_model_iterations == 0:
+                        test_count_iter = test(sess, model, data, test_writer, test_count_iter, is_store_output=False)
 
                     print ("Iteration ", global_step, " best_loss ", val_loss_seen)   
                     global_step += 1
