@@ -151,6 +151,17 @@ class datasets(object):
                 rand_smpl = [all_data_in_category[i] for i in sorted(random.sample(xrange(len(all_data_in_category)), 5))]
                 new_test.extend(rand_smpl)
 
+        new_test = new_test [ : (len(new_test) / self.batch_size)*self.batch_size]
         while True:
-            yield new_frame_ext.get_frames_with_interval_x(new_test, x=self.interval, randomize=False)
-            break
+            curr_batch = []
+            train_iter = iter(new_test)
+            while len(curr_batch) < self.batch_size:
+                entry = None
+                try:
+                    entry = train_iter.next()
+                except:
+                    break
+                if entry != None:
+                    curr_batch.append(entry)
+            if curr_batch:
+                yield new_frame_ext.get_frames_with_interval_x(curr_batch, x= self.interval, randomize=False)
