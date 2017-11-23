@@ -15,8 +15,9 @@ trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 
 file_path = os.path.abspath(os.path.dirname(__file__))
 output_video_save_file_path = os.path.join(file_path, "../../output/")
-frame_eval = (4,64,64,3) # T, H, W, C
-
+frame_eval = (8,160,210,3) # T, H, W, C
+model_name = "multi_scale_gan8"
+gif_path_markdown = "img/multi_scale_GAN/results/"
 #====================  COPIED CODE ===============================================
 #
 #  TENSORBOARD VISUALIZATION FOR SHARPNESS AND (Peak Signal to Noise Ratio){PSNR}
@@ -143,13 +144,18 @@ print ("Info : Evaluating on "+str(len(common_files_in_gen_exp))+" files.")
 
 gen_frames = []
 exp_frames = []
+markdown_generated = ""
+
 for each_file in common_files_in_gen_exp:
     gen_file = each_file + "_generated_large.mp4"
     exp_file = each_file + "_expected_large.mp4"
 
+    markdown_generated += "!["+model_name+"_results]("+gif_path_markdown+ each_file+ "_expected_large.gif" +")\n"
+    markdown_generated += "!["+model_name+"_results]("+gif_path_markdown+ each_file+ "_generated_large.gif" +")\n"
+
     gen_video_data = skvideo.io.vread(gen_file)
     exp_video_data = skvideo.io.vread(exp_file)
-    assert gen_video_data.shape == exp_video_data.shape == frame_eval
+    assert gen_video_data.shape == exp_video_data.shape == frame_eval, (gen_video_data.shape, exp_video_data.shape, frame_eval) 
 
     gen_frames.append(gen_video_data)
     exp_frames.append(exp_video_data)
@@ -192,3 +198,5 @@ print "sharp : "+str(sharp_diff)
 print "l2_ls : "+str(l2)
 print "gd_ls : "+str(gd)
 print "tot_ls : "+str(tot)
+
+print markdown_generated
