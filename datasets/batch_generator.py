@@ -145,6 +145,7 @@ class datasets(object):
         # vids = ['v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
         # tv = self.data['train'] + self.data['validation']
         new_test = []
+        random.seed(28)
         for category in self.categories:
             all_data_in_category = [path for path in self.all_vids if category in path]
             if len(all_data_in_category) > 1:
@@ -152,16 +153,21 @@ class datasets(object):
                 new_test.extend(rand_smpl)
 
         new_test = new_test [:(len(new_test) / self.batch_size)*self.batch_size]
+        print ("new-test ",len(new_test))
+        train_iter = iter(new_test)
+        flag_done = False
         while True:
             curr_batch = []
-            train_iter = iter(new_test)
             while len(curr_batch) < self.batch_size:
                 entry = None
                 try:
                     entry = train_iter.next()
                 except:
+                    flag_done = True
                     break
                 if entry != None:
                     curr_batch.append(entry)
             if curr_batch:
                 yield new_frame_ext.get_frames_with_interval_x(curr_batch, x= self.interval, randomize=False)
+            if flag_done:
+                break
