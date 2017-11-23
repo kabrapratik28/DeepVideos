@@ -147,11 +147,11 @@ class datasets(object):
         new_test = []
         for category in self.categories:
             all_data_in_category = [path for path in self.all_vids if category in path]
-            if len(all_data_in_category) > 5:
-                rand_smpl = [all_data_in_category[i] for i in sorted(random.sample(xrange(len(all_data_in_category)), 5))]
+            if len(all_data_in_category) > 1:
+                rand_smpl = [all_data_in_category[i] for i in sorted(random.sample(xrange(len(all_data_in_category)), 1))]
                 new_test.extend(rand_smpl)
 
-        new_test = new_test [ : (len(new_test) / self.batch_size)*self.batch_size]
+        new_test = new_test [:(len(new_test) / self.batch_size)*self.batch_size]
         while True:
             curr_batch = []
             train_iter = iter(new_test)
