@@ -13,6 +13,7 @@ class datasets(object):
         self.output_filename = os.path.join(self.file_path,output_filename)
         self.batch_size = batch_size
         self.data = None
+        self.all_vids = []
         self.custom_test_size = custom_test_size
         self.interval = interval
         self.time_frame = time_frame
@@ -21,6 +22,7 @@ class datasets(object):
         self.load_problematic_videos()
         self.train_test_split(val_split,test_split)
         self.dataset = dataset
+
 
     def load_problematic_videos(self):
         _frames_file = os.path.join(self.file_path, 'frames.pickle')
@@ -50,20 +52,19 @@ class datasets(object):
         """
         split_test_data : '%' of test data to split between 0 to 1
         """
-        all_vids = []
         for line in open(self.output_filename):
             line = line.rstrip('\n')
             if os.path.basename(line) in self.blacklist:
                 continue
             else:
-                all_vids.append(line)
+                self.all_vids.append(line)
 
         train = []
         validation = []
         test = []
 
         for category in self.categories:
-            all_data_in_category = [path for path in all_vids if category in path]
+            all_data_in_category = [path for path in self.all_vids if category in path]
             # datasize = len(all_data_in_category)
             # validation_index = int(datasize * split_validation_data)
             # validation.extend(all_data_in_category[:validation_index])
@@ -79,9 +80,9 @@ class datasets(object):
         # within that validation set take any 50 ! (if you wan fix 50 uncomment below line of seed set)
         # random.seed(28)
         # **************************************************************
-        # DONOT REMOVE SHUFFLE ELSE IT GIVES DATA FROM ONE CATEGORY !!! 
+        # DONOT REMOVE SHUFFLE ELSE IT GIVES DATA FROM ONE CATEGORY !!!
         # **************************************************************
-        random.shuffle(validation)  
+        random.shuffle(validation)
         random.shuffle(test)
         data = {'train':train, 'validation':validation[:50], 'test':test[:50]}
         self.data = data
@@ -141,9 +142,15 @@ class datasets(object):
     def get_custom_test_data(self):
         new_frame_ext = frame_extractor(height=self.custom_test_size[0], width=self.custom_test_size[1],time_frame=self.time_frame)
         # 3 good videos
-        vids = ['v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
-        tv = self.data['train'] + self.data['validation']
-        new_test = [x for vid in vids for x in tv if vid in x]
+        # vids = ['v_BoxingSpeedBag_g18_c03','v_MilitaryParade_g15_c06','v_SalsaSpin_g21_c02']
+        # tv = self.data['train'] + self.data['validation']
+        new_test = []
+        for category in self.categories:
+            all_data_in_category = [path for path in self.all_vids if category in path]
+            if len(all_data_in_category) > 5:
+                rand_smpl = [all_data_in_category[i] for i in sorted(random.sample(xrange(len(all_data_in_category)), 5))]
+                new_test.extend(rand_smpl)
+
         while True:
             yield new_frame_ext.get_frames_with_interval_x(new_test, x=self.interval, randomize=False)
             break
