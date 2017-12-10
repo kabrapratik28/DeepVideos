@@ -1,8 +1,8 @@
 # DeepVideos [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-DeepVideos is a tool to do future video frame prediction by looking at existing frames!
+DeepVideos is a tool to do future video frame prediction by looking at current frames!
 
->Installing Python: More detailed description can be found at  [https://team-pragmatic-chaos.github.io](https://team-pragmatic-chaos.github.io)
+> More detailed description can be found at  [https://team-pragmatic-chaos.github.io](https://team-pragmatic-chaos.github.io)
 
 - - - -
 
